@@ -1,0 +1,40 @@
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+services:
+  db:
+    image: postgres:17.4-alpine3.20
+    container_name: postgres_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/entrypoint.sh:/docker-entrypoint-initdb.d/entrypoint.sh
+      - ./database/create.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    networks:
+      - app
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: your_email@example.com
+      PGADMIN_DEFAULT_PASSWORD: your_pgadmin_password
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - app
+    depends_on:
+      db:
+        condition: service_started
