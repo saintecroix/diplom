@@ -14,7 +14,7 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_HOST_AUTH_METHOD=trust  # Только для разработки, не рекомендуется для продакшена
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/entrypoint.sh:/docker-entrypoint-initdb.d/entrypoint.sh
@@ -38,3 +38,21 @@ services:
     depends_on:
       db:
         condition: service_started
+
+  inputconvert:
+    build:
+      context: ..
+      dockerfile: ./cmd/inputConvert/docker/Dockerfile
+    container_name: inputconvert
+    ports:
+      - "50051:50051"
+    environment:
+      DB_HOST: postgres_db
+      DB_PORT: 5432
+      DB_USER: keril
+      DB_PASSWORD:
+      DB_NAME: my_db
+    depends_on:
+      - db
+    networks:
+      - app

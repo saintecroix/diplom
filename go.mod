@@ -1,4 +1,4 @@
-module cmd
+module github.com/saintecroix/diplom
 
 go 1.23.1
 
