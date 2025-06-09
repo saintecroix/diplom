@@ -1,23 +1,34 @@
 package main
 
-import "log"
+import (
+	"github.com/saintecroix/diplom/cmd/inputConvert/internal/app"
+	"github.com/saintecroix/diplom/internal/db"
+	"log"
+)
 
 func main() {
 	// Подключение к БД (реализуйте отдельно)
-	db, err := ConnectDB()
+	dbConn, err := db.ConnectDB()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer db.CloseDB(dbConn)
 
 	// Чтение Excel
-	data, err := ReadExcel("114_09032025_1706_empty.xlsx")
+	data, err := app.ReadExcel("114_09032025_1706_empty.xlsx")
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	firstRow := data[0]
+
+	keys := make([]string, 0, len(firstRow))
+	for k := range firstRow {
+		keys = append(keys, k)
 	}
 
 	// Маппинг колонок
-	mappings, err := MapColumns(db, data[0].Keys())
+	mappings, err := app.MapColumns(dbConn, keys)
 	if err != nil {
 		log.Fatal(err)
 	}

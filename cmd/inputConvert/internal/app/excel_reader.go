@@ -7,31 +7,25 @@ import (
 	"log"
 )
 
-// ReadExcel читает данные из Excel-файла
 func ReadExcel(filePath string) ([]map[string]interface{}, error) {
-	// Открываем файл
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка открытия файла: %v", err)
 	}
 	defer f.Close()
 
-	// Получаем первый лист
 	sheetName := f.GetSheetName(0)
 
-	// Читаем заголовки
 	headers, err := readHeaders(f, sheetName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Читаем строки данных
 	rows, err := f.GetRows(sheetName)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка чтения строк: %v", err)
 	}
 
-	// Пропускаем заголовок (первая строка)
 	data := make([]map[string]interface{}, 0)
 	for _, row := range rows[1:] {
 		item := make(map[string]interface{})
@@ -46,7 +40,6 @@ func ReadExcel(filePath string) ([]map[string]interface{}, error) {
 	return data, nil
 }
 
-// readHeaders получает заголовки из первой строки
 func readHeaders(f *excelize.File, sheetName string) ([]string, error) {
 	rows, err := f.GetRows(sheetName)
 	if err != nil || len(rows) == 0 {
@@ -55,7 +48,6 @@ func readHeaders(f *excelize.File, sheetName string) ([]string, error) {
 	return rows[0], nil
 }
 
-// MapColumns сопоставляет названия колонок Excel с полями БД
 func MapColumns(db *sql.DB, excelHeaders []string) (map[string]string, error) {
 	mappings := make(map[string]string)
 	for _, header := range excelHeaders {
