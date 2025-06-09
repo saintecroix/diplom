@@ -1,68 +1,95 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"reflect"
+	"strconv"
+	"time"
+
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
-const (
-	dbHost     = "db" // Имя сервиса в Docker Compose
-	dbPort     = 5432
-	dbUser     = "keril"
-	dbPassword = "pass"
-	dbName     = "my_db"
-	dbSSLMode  = "disable" // "require" для продакшена
-)
-
-func ConnectDB() (*sql.DB, error) {
-	// Формируем строку подключения из констант
-	connStr := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode,
-	)
-
-	// Открываем соединение
-	db, err := sql.Open("postgres", connStr)
+func loadDBConfig() (*DBConfig, error) {
+	port, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
+		return nil, fmt.Errorf("invalid DB_PORT: %w", err)
 	}
 
-	// Проверяем подключение
-	if err = pingDatabase(db); err != nil {
-		return nil, fmt.Errorf("database ping failed: %w", err)
-	}
-
-	// Настраиваем пул соединений
-	configureConnectionPool(db)
-
-	log.Info().
-		Str("db", dbName).
-		Str("host", dbHost).
-		Msg("Successfully connected to database")
-	return db, nil
+	return &DBConfig{
+		Host:     getEnv("DB_HOST", "db"),
+		Port:     port,
+		User:     getEnv("DB_USER", "keril"),
+		Password: getEnv("DB_PASSWORD", "pass"),
+		DBName:   getEnv("DB_NAME", "my_db"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
+	}, nil
 }
 
-func pingDatabase(db *sql.DB) error {
-	var err error
-	maxAttempts := 5
-	for i := 1; i <= maxAttempts; i++ {
-		err = db.Ping()
-		if err == nil {
-			return nil
-		}
-
-		wait := time.Duration(i*i) * time.Second
-		log.Warn().Err(err).
-			Int("attempt", i).
-			Dur("wait", wait).
-			Msg("Database connection failed, retrying...")
-
-		time.Sleep(wait)
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
 	}
-	return fmt.Errorf("failed to connect after %d attempts: %w", maxAttempts, err)
+	return defaultValue
+}
+
+// ConnectDB устанавливает подключение к БД с бесконечными попытками
+func ConnectDB(ctx context.Context) (*sql.DB, error) {
+	config, err := loadDBConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load DB config: %w", err)
+	}
+
+	connStr := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode,
+	)
+
+	var db *sql.DB
+	attempt := 1
+	maxWait := 30 * time.Second
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context canceled before DB connection established")
+		default:
+			db, err = sql.Open("postgres", connStr)
+			if err != nil {
+				log.Warn().Err(err).Msg("Failed to open DB connection")
+				time.Sleep(backoff(attempt, maxWait))
+				attempt++
+				continue
+			}
+
+			if err = db.PingContext(ctx); err != nil {
+				log.Warn().Err(err).Int("attempt", attempt).Msg("DB ping failed")
+				db.Close()
+				time.Sleep(backoff(attempt, maxWait))
+				attempt++
+				continue
+			}
+
+			configureConnectionPool(db)
+			log.Info().
+				Str("db", config.DBName).
+				Str("host", config.Host).
+				Msg("Successfully connected to database")
+			return db, nil
+		}
+	}
+}
+
+// Экспоненциальная задержка с ограничением максимального времени
+func backoff(attempt int, max time.Duration) time.Duration {
+	wait := time.Duration(attempt*attempt) * time.Second
+	if wait > max {
+		return max
+	}
+	return wait
 }
 
 func configureConnectionPool(db *sql.DB) {
@@ -84,12 +111,158 @@ func configureConnectionPool(db *sql.DB) {
 		Msg("Configured database connection pool")
 }
 
-func CloseDB(db *sql.DB) {
+// CloseDB безопасно закрывает подключение с учетом контекста
+func CloseDB(ctx context.Context, db *sql.DB) {
 	if db != nil {
-		if err := db.Close(); err != nil {
-			log.Error().Err(err).Msg("Failed to close database connection")
-		} else {
-			log.Info().Msg("Database connection closed")
+		// Сначала пытаемся закрыть все соединения грациозно
+		done := make(chan struct{})
+		go func() {
+			if err := db.Close(); err != nil {
+				log.Error().Err(err).Msg("Failed to close database connection")
+			} else {
+				log.Info().Msg("Database connection closed")
+			}
+			close(done)
+		}()
+
+		// Ожидаем завершения или отмены контекста
+		select {
+		case <-done:
+			return
+		case <-ctx.Done():
+			log.Warn().Msg("Forced DB connection closure due to context timeout")
 		}
 	}
+}
+
+func SaveTripsToDB(ctx context.Context, db *sql.DB, tripsData []map[string]interface{}) error {
+	// Название таблицы
+	tableName := "diplom_raw.trips"
+
+	// Проверяем, что у нас есть данные для вставки
+	if len(tripsData) == 0 {
+		return nil // Если нет данных, ничего не делаем
+	}
+
+	// 1. Преобразуем map[string]interface{} в структуру Trip
+	trips := make([]Trip, len(tripsData))
+	for i, data := range tripsData {
+		err := mapToStruct(data, &trips[i])
+		if err != nil {
+			return fmt.Errorf("error converting map to struct: %w", err)
+		}
+	}
+
+	// 2. Строим SQL-запрос на основе структуры Trip
+	// Получаем тип структуры Trip
+	tripType := reflect.TypeOf(Trip{})
+	// Создаем слайс для хранения имен колонок
+	columnNames := make([]string, tripType.NumField())
+	// Строим строку с именами колонок и плейсхолдерами
+	columns := ""
+	placeholders := ""
+	for i := 0; i < tripType.NumField(); i++ {
+		field := tripType.Field(i)
+		columnNames[i] = field.Tag.Get("db") // Получаем имя колонки из тега `db`
+
+		columns += fmt.Sprintf("\"%s\"", columnNames[i])
+		placeholders += fmt.Sprintf("$%d", i+1)
+
+		if i < tripType.NumField()-1 {
+			columns += ", "
+			placeholders += ", "
+		}
+	}
+
+	// Формируем SQL-запрос для вставки нескольких строк
+	sqlStatement := fmt.Sprintf(`
+		INSERT INTO %s (%s)
+		VALUES (%s)
+		RETURNING id
+	`, tableName, columns, placeholders)
+
+	// Готовим statement для пакетной вставки
+	stmt, err := db.PrepareContext(ctx, sqlStatement)
+	if err != nil {
+		log.Printf("Error preparing statement: %v", err)
+		return fmt.Errorf("error preparing statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, trip := range trips {
+		// Создаем слайс для хранения значений полей структуры
+		v := reflect.ValueOf(trip)
+		values := make([]interface{}, v.NumField())
+		for i := 0; i < v.NumField(); i++ {
+			values[i] = v.Field(i).Interface()
+		}
+
+		var id int64
+		err = stmt.QueryRowContext(ctx, values...).Scan(&id) // Подставляем значения
+		if err != nil {
+			log.Printf("Error inserting row: %v", err)
+			return fmt.Errorf("error inserting row: %w", err)
+		}
+
+		log.Printf("Inserted row with ID: %d", id)
+	}
+
+	return nil
+}
+
+// mapToStruct преобразует map[string]interface{} в структуру Trip
+func mapToStruct(m map[string]interface{}, s interface{}) error {
+	v := reflect.ValueOf(s).Elem()
+	typeOfS := v.Type()
+
+	for i := 0; i < typeOfS.NumField(); i++ {
+		field := typeOfS.Field(i)
+		fieldName := field.Tag.Get("db") // Используем тег `db` для получения имени поля
+		fieldValue, ok := m[fieldName]
+		if !ok {
+			continue // Пропускаем поля, отсутствующие в map
+		}
+
+		fieldValueReflect := reflect.ValueOf(fieldValue)
+
+		//Проверяем, что поле можно установить
+		if v.Field(i).CanSet() {
+			// Преобразуем тип, если необходимо
+			convertedValue, err := convertType(fieldValueReflect, field.Type)
+			if err != nil {
+				return fmt.Errorf("error converting type for field %s: %w", fieldName, err)
+			}
+
+			// Устанавливаем значение поля
+			v.Field(i).Set(convertedValue)
+		} else {
+			return fmt.Errorf("cannot set field %s", fieldName)
+		}
+
+	}
+
+	return nil
+}
+
+// convertType преобразует типы данных при необходимости
+func convertType(src reflect.Value, target reflect.Type) (reflect.Value, error) {
+	if src.Type() == target {
+		return src, nil // Типы совпадают, преобразование не требуется
+	}
+
+	// Преобразование string в time.Time
+	if src.Type().Kind() == reflect.String && target == reflect.TypeOf(time.Time{}) {
+		timeValue, err := time.Parse(time.RFC3339, src.String())
+		if err != nil {
+			// Пробуем другие форматы
+			timeValue, err = time.Parse("02.01.2006 15:04:05", src.String())
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("cannot convert string to time.Time: %w", err)
+			}
+		}
+		return reflect.ValueOf(timeValue), nil
+	}
+	//Добавьте другие преобразования по мере необходимости
+
+	return reflect.Value{}, fmt.Errorf("unsupported type conversion from %s to %s", src.Type(), target)
 }
