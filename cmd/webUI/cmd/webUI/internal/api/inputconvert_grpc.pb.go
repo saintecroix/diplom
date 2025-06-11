@@ -4,7 +4,7 @@
 // - protoc             v6.31.1
 // source: proto/inputconvert.proto
 
-package proto
+package api
 
 import (
 	context "context"
@@ -27,6 +27,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InputConvertServiceClient interface {
 	ConvertExcelData(ctx context.Context, in *ConvertExcelDataRequest, opts ...grpc.CallOption) (*ConvertExcelDataResponse, error)
+	ConvertData(ctx context.Context, req any) (interface{}, interface{})
 }
 
 type inputConvertServiceClient struct {

@@ -4,7 +4,7 @@
 // 	protoc        v6.31.1
 // source: proto/inputconvert.proto
 
-package proto
+package api
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
