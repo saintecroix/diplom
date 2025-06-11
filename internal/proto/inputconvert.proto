@@ -1,0 +1,18 @@
+syntax = "proto3";
+package api;
+
+option go_package = "github.com/saintecroix/diplom/api";
+
+service InputConvertService {
+  rpc ConvertExcelData(ConvertExcelDataRequest) returns (ConvertExcelDataResponse) {}
+}
+
+message ConvertExcelDataRequest {
+  bytes file_data = 1;
+  string filename = 2;
+}
+
+message ConvertExcelDataResponse {
+  repeated string results = 1;
+  string error = 2;
+}

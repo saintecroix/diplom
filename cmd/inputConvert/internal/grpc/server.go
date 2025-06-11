@@ -3,11 +3,14 @@ package grpc
 import (
 	"context"
 	"database/sql"
-	"log"
+
+	"github.com/rs/zerolog/log" // Import zerolog
+	"net"
 
 	"github.com/saintecroix/diplom/cmd/inputConvert/internal/app"
 	pb "github.com/saintecroix/diplom/cmd/inputConvert/proto" // Замените на правильный путь
-	_ "github.com/saintecroix/diplom/internal/db"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 type Server struct {
@@ -20,12 +23,11 @@ func NewServer(dbConn *sql.DB) *Server {
 }
 
 func (s *Server) ConvertExcelData(ctx context.Context, req *pb.ConvertExcelDataRequest) (*pb.ConvertExcelDataResponse, error) {
-	filePath := req.FilePath
-	log.Printf("Received request to convert Excel data from: %s", filePath)
+	log.Info().Msg("Received request to convert Excel data")
 
-	data, err := app.ReadExcel(filePath)
+	data, err := app.ReadExcelFromBytes(req.Filedata)
 	if err != nil {
-		log.Printf("Error reading Excel file: %v", err)
+		log.Error().Msgf("Error reading Excel file from bytes: %v", err)
 		return &pb.ConvertExcelDataResponse{Error: err.Error()}, nil // Обратите внимание на обработку ошибок
 	}
 
@@ -38,7 +40,7 @@ func (s *Server) ConvertExcelData(ctx context.Context, req *pb.ConvertExcelDataR
 
 	mappings, err := app.MapColumns(s.dbConn, keys) // Передаем dbConn
 	if err != nil {
-		log.Printf("Error mapping columns: %v", err)
+		log.Error().Msgf("Error mapping columns: %v", err)
 		return &pb.ConvertExcelDataResponse{Error: err.Error()}, nil
 	}
 
@@ -55,4 +57,28 @@ func (s *Server) ConvertExcelData(ctx context.Context, req *pb.ConvertExcelDataR
 	}
 
 	return &pb.ConvertExcelDataResponse{Results: results}, nil // Возвращаем ответ
+}
+
+// StartGRPCServer запускает gRPC-сервер.
+func StartGRPCServer(dbConn *sql.DB, port string) error {
+	lis, err := net.Listen("tcp", port) // Порт, на котором будет слушать сервер
+	if err != nil {
+		log.Fatal().Msgf("Failed to listen: %v", err)
+		return err
+	}
+
+	s := NewServer(dbConn)
+	grpcServer := grpc.NewServer()
+	pb.RegisterInputConvertServiceServer(grpcServer, s)
+
+	// Регистрация reflection API (для отладки)
+	reflection.Register(grpcServer)
+
+	log.Info().Msgf("Starting gRPC server on port %s", port)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatal().Msgf("Failed to serve: %v", err)
+		return err
+	}
+
+	return nil
 }

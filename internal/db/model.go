@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"context"
+	"database/sql"
+	"time"
+)
 
 type Trip struct {
 	ДатаИВремяНачалаРейса time.Time `db:"Дата и время начала рейса"`
@@ -25,4 +29,18 @@ type DBConfig struct {
 	Password string
 	DBName   string
 	SSLMode  string
+}
+
+// TripRepository определяет интерфейс для работы с таблицей trips
+type TripRepository interface {
+	GetTripByID(ctx context.Context, id int64) (*Trip, error)
+	CreateTrip(ctx context.Context, trip *Trip) (int64, error)
+	UpdateTrip(ctx context.Context, trip *Trip) error
+	DeleteTrip(ctx context.Context, id int64) error
+	BulkCreateTrips(ctx context.Context, trips []Trip) error // Добавим метод для пакетной вставки
+}
+
+// PostgresTripRepository - реализация TripRepository для PostgreSQL
+type PostgresTripRepository struct {
+	db *sql.DB
 }

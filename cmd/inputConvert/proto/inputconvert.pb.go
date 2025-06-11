@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v6.31.1
-// source: cmd/inputConvert/proto/inputconvert.proto
+// source: internal/proto/inputconvert.proto
 
 package proto
 
@@ -26,11 +26,12 @@ type ConvertExcelDataRequest struct {
 	FilePath      string                 `protobuf:"bytes,1,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
+	Filedata      []byte
 }
 
 func (x *ConvertExcelDataRequest) Reset() {
 	*x = ConvertExcelDataRequest{}
-	mi := &file_cmd_inputConvert_proto_inputconvert_proto_msgTypes[0]
+	mi := &file_internal_proto_inputconvert_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +43,7 @@ func (x *ConvertExcelDataRequest) String() string {
 func (*ConvertExcelDataRequest) ProtoMessage() {}
 
 func (x *ConvertExcelDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cmd_inputConvert_proto_inputconvert_proto_msgTypes[0]
+	mi := &file_internal_proto_inputconvert_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +56,7 @@ func (x *ConvertExcelDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConvertExcelDataRequest.ProtoReflect.Descriptor instead.
 func (*ConvertExcelDataRequest) Descriptor() ([]byte, []int) {
-	return file_cmd_inputConvert_proto_inputconvert_proto_rawDescGZIP(), []int{0}
+	return file_internal_proto_inputconvert_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ConvertExcelDataRequest) GetFilePath() string {
@@ -75,7 +76,7 @@ type ConvertExcelDataResponse struct {
 
 func (x *ConvertExcelDataResponse) Reset() {
 	*x = ConvertExcelDataResponse{}
-	mi := &file_cmd_inputConvert_proto_inputconvert_proto_msgTypes[1]
+	mi := &file_internal_proto_inputconvert_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +88,7 @@ func (x *ConvertExcelDataResponse) String() string {
 func (*ConvertExcelDataResponse) ProtoMessage() {}
 
 func (x *ConvertExcelDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cmd_inputConvert_proto_inputconvert_proto_msgTypes[1]
+	mi := &file_internal_proto_inputconvert_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +101,7 @@ func (x *ConvertExcelDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConvertExcelDataResponse.ProtoReflect.Descriptor instead.
 func (*ConvertExcelDataResponse) Descriptor() ([]byte, []int) {
-	return file_cmd_inputConvert_proto_inputconvert_proto_rawDescGZIP(), []int{1}
+	return file_internal_proto_inputconvert_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ConvertExcelDataResponse) GetResults() []string {
@@ -117,11 +118,11 @@ func (x *ConvertExcelDataResponse) GetError() string {
 	return ""
 }
 
-var File_cmd_inputConvert_proto_inputconvert_proto protoreflect.FileDescriptor
+var File_internal_proto_inputconvert_proto protoreflect.FileDescriptor
 
-const file_cmd_inputConvert_proto_inputconvert_proto_rawDesc = "" +
+const file_internal_proto_inputconvert_proto_rawDesc = "" +
 	"\n" +
-	")cmd/inputConvert/proto/inputconvert.proto\x12\finputconvert\"6\n" +
+	"!internal/proto/inputconvert.proto\x12\finputconvert\"6\n" +
 	"\x17ConvertExcelDataRequest\x12\x1b\n" +
 	"\tfile_path\x18\x01 \x01(\tR\bfilePath\"J\n" +
 	"\x18ConvertExcelDataResponse\x12\x18\n" +
@@ -131,23 +132,23 @@ const file_cmd_inputConvert_proto_inputconvert_proto_rawDesc = "" +
 	"\x10ConvertExcelData\x12%.inputconvert.ConvertExcelDataRequest\x1a&.inputconvert.ConvertExcelDataResponse\"\x00B%Z#github.com/saintecroix/diplom/protob\x06proto3"
 
 var (
-	file_cmd_inputConvert_proto_inputconvert_proto_rawDescOnce sync.Once
-	file_cmd_inputConvert_proto_inputconvert_proto_rawDescData []byte
+	file_internal_proto_inputconvert_proto_rawDescOnce sync.Once
+	file_internal_proto_inputconvert_proto_rawDescData []byte
 )
 
-func file_cmd_inputConvert_proto_inputconvert_proto_rawDescGZIP() []byte {
-	file_cmd_inputConvert_proto_inputconvert_proto_rawDescOnce.Do(func() {
-		file_cmd_inputConvert_proto_inputconvert_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_cmd_inputConvert_proto_inputconvert_proto_rawDesc), len(file_cmd_inputConvert_proto_inputconvert_proto_rawDesc)))
+func file_internal_proto_inputconvert_proto_rawDescGZIP() []byte {
+	file_internal_proto_inputconvert_proto_rawDescOnce.Do(func() {
+		file_internal_proto_inputconvert_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_proto_inputconvert_proto_rawDesc), len(file_internal_proto_inputconvert_proto_rawDesc)))
 	})
-	return file_cmd_inputConvert_proto_inputconvert_proto_rawDescData
+	return file_internal_proto_inputconvert_proto_rawDescData
 }
 
-var file_cmd_inputConvert_proto_inputconvert_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_cmd_inputConvert_proto_inputconvert_proto_goTypes = []any{
+var file_internal_proto_inputconvert_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_internal_proto_inputconvert_proto_goTypes = []any{
 	(*ConvertExcelDataRequest)(nil),  // 0: inputconvert.ConvertExcelDataRequest
 	(*ConvertExcelDataResponse)(nil), // 1: inputconvert.ConvertExcelDataResponse
 }
-var file_cmd_inputConvert_proto_inputconvert_proto_depIdxs = []int32{
+var file_internal_proto_inputconvert_proto_depIdxs = []int32{
 	0, // 0: inputconvert.InputConvertService.ConvertExcelData:input_type -> inputconvert.ConvertExcelDataRequest
 	1, // 1: inputconvert.InputConvertService.ConvertExcelData:output_type -> inputconvert.ConvertExcelDataResponse
 	1, // [1:2] is the sub-list for method output_type
@@ -157,26 +158,26 @@ var file_cmd_inputConvert_proto_inputconvert_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_cmd_inputConvert_proto_inputconvert_proto_init() }
-func file_cmd_inputConvert_proto_inputconvert_proto_init() {
-	if File_cmd_inputConvert_proto_inputconvert_proto != nil {
+func init() { file_internal_proto_inputconvert_proto_init() }
+func file_internal_proto_inputconvert_proto_init() {
+	if File_internal_proto_inputconvert_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cmd_inputConvert_proto_inputconvert_proto_rawDesc), len(file_cmd_inputConvert_proto_inputconvert_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_proto_inputconvert_proto_rawDesc), len(file_internal_proto_inputconvert_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_cmd_inputConvert_proto_inputconvert_proto_goTypes,
-		DependencyIndexes: file_cmd_inputConvert_proto_inputconvert_proto_depIdxs,
-		MessageInfos:      file_cmd_inputConvert_proto_inputconvert_proto_msgTypes,
+		GoTypes:           file_internal_proto_inputconvert_proto_goTypes,
+		DependencyIndexes: file_internal_proto_inputconvert_proto_depIdxs,
+		MessageInfos:      file_internal_proto_inputconvert_proto_msgTypes,
 	}.Build()
-	File_cmd_inputConvert_proto_inputconvert_proto = out.File
-	file_cmd_inputConvert_proto_inputconvert_proto_goTypes = nil
-	file_cmd_inputConvert_proto_inputconvert_proto_depIdxs = nil
+	File_internal_proto_inputconvert_proto = out.File
+	file_internal_proto_inputconvert_proto_goTypes = nil
+	file_internal_proto_inputconvert_proto_depIdxs = nil
 }

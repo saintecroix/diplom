@@ -1,16 +1,20 @@
 package app
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/xuri/excelize/v2"
-	"log"
 )
 
-func ReadExcel(filePath string) ([]map[string]interface{}, error) {
-	f, err := excelize.OpenFile(filePath)
+func ReadExcelFromBytes(fileData []byte) ([]map[string]interface{}, error) {
+	// Create a new reader from the byte slice
+	reader := bytes.NewReader(fileData)
+
+	f, err := excelize.OpenReader(reader)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка открытия файла: %v", err)
+		return nil, fmt.Errorf("ошибка открытия файла из байтов: %v", err)
 	}
 	defer f.Close()
 

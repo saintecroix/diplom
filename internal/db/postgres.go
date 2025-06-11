@@ -112,58 +112,59 @@ func configureConnectionPool(db *sql.DB) {
 }
 
 // CloseDB безопасно закрывает подключение с учетом контекста
-func CloseDB(ctx context.Context, db *sql.DB) {
+func CloseDB(ctx context.Context, db *sql.DB) error {
 	if db != nil {
 		// Сначала пытаемся закрыть все соединения грациозно
-		done := make(chan struct{})
+		done := make(chan error, 1) // Канал для передачи ошибки
 		go func() {
-			if err := db.Close(); err != nil {
+			err := db.Close()
+			if err != nil {
 				log.Error().Err(err).Msg("Failed to close database connection")
+				done <- err // Отправляем ошибку в канал
 			} else {
 				log.Info().Msg("Database connection closed")
+				done <- nil // Отправляем nil в канал, чтобы сообщить об успехе
 			}
 			close(done)
 		}()
 
 		// Ожидаем завершения или отмены контекста
 		select {
-		case <-done:
-			return
+		case err := <-done: // Получаем ошибку из канала
+			if err != nil {
+				return err // Возвращаем ошибку
+			}
+			return nil // Возвращаем nil, если закрытие прошло успешно
 		case <-ctx.Done():
 			log.Warn().Msg("Forced DB connection closure due to context timeout")
+			return ctx.Err() // Возвращаем ошибку из контекста
 		}
 	}
+	return nil // Возвращаем nil, если db == nil
 }
 
-func SaveTripsToDB(ctx context.Context, db *sql.DB, tripsData []map[string]interface{}) error {
-	// Название таблицы
-	tableName := "diplom_raw.trips"
+// NewPostgresTripRepository создает новый экземпляр PostgresTripRepository
+func NewPostgresTripRepository(db *sql.DB) TripRepository {
+	return &PostgresTripRepository{db: db}
+}
 
+// (Определения структур и функций loadDBConfig, getEnv, ConnectDB, CloseDB, backoff, configureConnectionPool остаются без изменений)
+
+// BulkCreateTrips реализует пакетную вставку данных в таблицу trips
+func (r *PostgresTripRepository) BulkCreateTrips(ctx context.Context, trips []Trip) error {
 	// Проверяем, что у нас есть данные для вставки
-	if len(tripsData) == 0 {
-		return nil // Если нет данных, ничего не делаем
+	if len(trips) == 0 {
+		return nil
 	}
 
-	// 1. Преобразуем map[string]interface{} в структуру Trip
-	trips := make([]Trip, len(tripsData))
-	for i, data := range tripsData {
-		err := mapToStruct(data, &trips[i])
-		if err != nil {
-			return fmt.Errorf("error converting map to struct: %w", err)
-		}
-	}
-
-	// 2. Строим SQL-запрос на основе структуры Trip
-	// Получаем тип структуры Trip
+	// 1. Строим SQL-запрос на основе структуры Trip
 	tripType := reflect.TypeOf(Trip{})
-	// Создаем слайс для хранения имен колонок
 	columnNames := make([]string, tripType.NumField())
-	// Строим строку с именами колонок и плейсхолдерами
 	columns := ""
 	placeholders := ""
 	for i := 0; i < tripType.NumField(); i++ {
 		field := tripType.Field(i)
-		columnNames[i] = field.Tag.Get("db") // Получаем имя колонки из тега `db`
+		columnNames[i] = field.Tag.Get("db")
 
 		columns += fmt.Sprintf("\"%s\"", columnNames[i])
 		placeholders += fmt.Sprintf("$%d", i+1)
@@ -174,44 +175,83 @@ func SaveTripsToDB(ctx context.Context, db *sql.DB, tripsData []map[string]inter
 		}
 	}
 
-	// Формируем SQL-запрос для вставки нескольких строк
+	// Формируем SQL-запрос для пакетной вставки
 	sqlStatement := fmt.Sprintf(`
-		INSERT INTO %s (%s)
+		INSERT INTO diplom_raw.trips (%s)
 		VALUES (%s)
-		RETURNING id
-	`, tableName, columns, placeholders)
+	`, columns, placeholders)
 
-	// Готовим statement для пакетной вставки
-	stmt, err := db.PrepareContext(ctx, sqlStatement)
+	// 2. Готовим statement для пакетной вставки
+	stmt, err := r.db.PrepareContext(ctx, sqlStatement)
 	if err != nil {
-		log.Printf("Error preparing statement: %v", err)
+		log.Error().Err(err).Msg("Error preparing statement")
 		return fmt.Errorf("error preparing statement: %w", err)
 	}
 	defer stmt.Close()
 
+	// 3. Выполняем транзакцию для пакетной вставки
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("Error starting transaction")
+		return fmt.Errorf("error starting transaction: %w", err)
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after rollback
+		} else if err != nil {
+			tx.Rollback() // err is non-nil; don't change it
+			log.Error().Err(err).Msg("Error during transaction, rollback")
+		} else {
+			err = tx.Commit() // err is nil; if Commit returns error update err
+			log.Info().Msg("Transaction committed successfully")
+		}
+	}()
+
+	// 4. Вставляем данные в цикле, используя подготовленный statement
 	for _, trip := range trips {
-		// Создаем слайс для хранения значений полей структуры
 		v := reflect.ValueOf(trip)
 		values := make([]interface{}, v.NumField())
 		for i := 0; i < v.NumField(); i++ {
 			values[i] = v.Field(i).Interface()
 		}
 
-		var id int64
-		err = stmt.QueryRowContext(ctx, values...).Scan(&id) // Подставляем значения
+		_, err = tx.StmtContext(ctx, stmt).ExecContext(ctx, values...)
 		if err != nil {
-			log.Printf("Error inserting row: %v", err)
-			return fmt.Errorf("error inserting row: %w", err)
+			log.Error().Err(err).Msg("Error executing statement")
+			return fmt.Errorf("error executing statement: %w", err)
 		}
-
-		log.Printf("Inserted row with ID: %d", id)
 	}
 
 	return nil
 }
 
+// GetTripByID - получает запись trips по ID (пример, нужно реализовать)
+func (r *PostgresTripRepository) GetTripByID(ctx context.Context, id int64) (*Trip, error) {
+	// TODO: Реализовать
+	return nil, fmt.Errorf("not implemented")
+}
+
+// CreateTrip - создает новую запись trips (пример, нужно реализовать)
+func (r *PostgresTripRepository) CreateTrip(ctx context.Context, trip *Trip) (int64, error) {
+	// TODO: Реализовать
+	return 0, fmt.Errorf("not implemented")
+}
+
+// UpdateTrip - обновляет запись trips (пример, нужно реализовать)
+func (r *PostgresTripRepository) UpdateTrip(ctx context.Context, trip *Trip) error {
+	// TODO: Реализовать
+	return fmt.Errorf("not implemented")
+}
+
+// DeleteTrip - удаляет запись trips (пример, нужно реализовать)
+func (r *PostgresTripRepository) DeleteTrip(ctx context.Context, id int64) error {
+	// TODO: Реализовать
+	return fmt.Errorf("not implemented")
+}
+
 // mapToStruct преобразует map[string]interface{} в структуру Trip
-func mapToStruct(m map[string]interface{}, s interface{}) error {
+func MapToStruct(m map[string]interface{}, s interface{}) error {
 	v := reflect.ValueOf(s).Elem()
 	typeOfS := v.Type()
 

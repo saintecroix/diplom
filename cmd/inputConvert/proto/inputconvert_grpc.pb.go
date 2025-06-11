@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.31.1
-// source: cmd/inputConvert/proto/inputconvert.proto
+// source: internal/proto/inputconvert.proto
 
 package proto
 
@@ -117,5 +117,5 @@ var InputConvertService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "cmd/inputConvert/proto/inputconvert.proto",
+	Metadata: "internal/proto/inputconvert.proto",
 }
