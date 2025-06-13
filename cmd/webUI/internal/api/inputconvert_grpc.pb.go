@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.31.1
-// source: proto/inputconvert.proto
+// source: inputconvert.proto
 
 package api
 
@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	InputConvertService_ConvertExcelData_FullMethodName = "/inputconvert.InputConvertService/ConvertExcelData"
+	InputConvertService_ConvertExcelData_FullMethodName = "/api.InputConvertService/ConvertExcelData"
 )
 
 // InputConvertServiceClient is the client API for InputConvertService service.
@@ -27,7 +27,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InputConvertServiceClient interface {
 	ConvertExcelData(ctx context.Context, in *ConvertExcelDataRequest, opts ...grpc.CallOption) (*ConvertExcelDataResponse, error)
-	ConvertData(ctx context.Context, req any) (interface{}, interface{})
 }
 
 type inputConvertServiceClient struct {
@@ -109,7 +108,7 @@ func _InputConvertService_ConvertExcelData_Handler(srv interface{}, ctx context.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var InputConvertService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "inputconvert.InputConvertService",
+	ServiceName: "api.InputConvertService",
 	HandlerType: (*InputConvertServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -118,5 +117,5 @@ var InputConvertService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/inputconvert.proto",
+	Metadata: "inputconvert.proto",
 }

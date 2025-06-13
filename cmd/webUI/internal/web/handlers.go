@@ -5,12 +5,12 @@ import (
 	"embed"
 	"fmt"
 	"github.com/rs/zerolog/log"
+	api "github.com/saintecroix/diplom/cmd/webUI/internal/api"
 	"html/template"
 	"io"
 	"net/http"
 	"os"
 
-	"github.com/saintecroix/diplom/cmd/webUI/cmd/webUI/internal/api" // Импортируем сгенерированный Go-код
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -149,7 +149,8 @@ func uploadHandler(wr http.ResponseWriter, r *http.Request) {
 
 	// 5. Создаем gRPC запрос
 	req := &api.ConvertExcelDataRequest{
-		FilePath: tmpFile.Name(), // Передаем путь к временному файлу
+		FileData: fileData,
+		Filename: header.Filename,
 	}
 
 	// 6. Отправляем запрос в inputConvert сервис

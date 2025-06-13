@@ -3,10 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
+	"github.com/saintecroix/diplom/cmd/webUI/internal/web"
 	"net/http"
 	"os"
-
-	"github.com/saintecroix/diplom/cmd/webUI/cmd/webUI/internal/web"
 )
 
 func main() {

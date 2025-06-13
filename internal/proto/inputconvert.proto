@@ -4,15 +4,34 @@ package api;
 option go_package = "github.com/saintecroix/diplom/api";
 
 service InputConvertService {
-  rpc ConvertExcelData(ConvertExcelDataRequest) returns (ConvertExcelDataResponse) {}
+  rpc UploadAndConvertExcelData(UploadAndConvertExcelDataRequest) returns (UploadAndConvertExcelDataResponse) {}
+  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse) {}
 }
 
-message ConvertExcelDataRequest {
+message UploadAndConvertExcelDataRequest {
   bytes file_data = 1;
   string filename = 2;
 }
 
-message ConvertExcelDataResponse {
-  repeated string results = 1;
-  string error = 2;
+message UploadAndConvertExcelDataResponse {
+  string job_id = 1; // ID for tracking the conversion job
+  string message = 2; // Optional success message
+  string error = 3;   // Optional error message
+}
+
+message GetJobStatusRequest {
+  string job_id = 1;
+}
+
+message GetJobStatusResponse {
+  enum JobStatus {
+    PENDING = 0;
+    PROCESSING = 1;
+    COMPLETED = 2;
+    FAILED = 3;
+  }
+  JobStatus status = 1;
+  int32 progress = 2; // Percentage of completion (0-100)
+  string message = 3;  // Optional status message (e.g., "Reading file", "Validating data")
+  string error = 4;    // Optional error message
 }
