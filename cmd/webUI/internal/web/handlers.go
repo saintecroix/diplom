@@ -5,7 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"github.com/rs/zerolog/log"
-	api "github.com/saintecroix/diplom/cmd/webUI/internal/api"
+	api "github.com/saintecroix/diplom/internal/api"
 	"html/template"
 	"io"
 	"net/http"
@@ -148,14 +148,14 @@ func uploadHandler(wr http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Создаем gRPC запрос
-	req := &api.ConvertExcelDataRequest{
+	req := &api.UploadAndConvertExcelDataRequest{
 		FileData: fileData,
 		Filename: header.Filename,
 	}
 
 	// 6. Отправляем запрос в inputConvert сервис
 	ctx := context.Background()
-	resp, err := w.client.ConvertExcelData(ctx, req)
+	resp, err := w.client.UploadAndConvertExcelData(ctx, req)
 	if err != nil {
 		log.Printf("Error calling ConvertExcelData: %v", err)
 		http.Error(wr, "Failed to convert data", 500)
@@ -163,10 +163,10 @@ func uploadHandler(wr http.ResponseWriter, r *http.Request) {
 	}
 
 	// 7. Обрабатываем ответ от inputConvert сервиса
-	log.Printf("Received response: %v", resp.Results)
+	log.Printf("Received response: %v", resp)
 
 	// 8. Формируем сообщение для пользователя
-	message := fmt.Sprintf("Conversion results: %v, Error: %s", resp.Results, resp.Error)
+	message := fmt.Sprintf("Conversion results: %v, Error: %s", resp, resp.Error)
 	if resp.Error != "" {
 		log.Printf("Error from inputConvert: %s", resp.Error)
 	}

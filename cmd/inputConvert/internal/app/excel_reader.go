@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 	"github.com/xuri/excelize/v2"
 )
@@ -52,7 +53,7 @@ func readHeaders(f *excelize.File, sheetName string) ([]string, error) {
 	return rows[0], nil
 }
 
-func MapColumns(db *sql.DB, excelHeaders []string) (map[string]string, error) {
+func MapColumns(db *pgxpool.Pool, excelHeaders []string) (map[string]string, error) {
 	mappings := make(map[string]string)
 	for _, header := range excelHeaders {
 		var originalName string
