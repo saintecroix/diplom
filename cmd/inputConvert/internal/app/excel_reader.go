@@ -2,8 +2,9 @@ package app
 
 import (
 	"bytes"
-	"database/sql"
+	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 	"github.com/xuri/excelize/v2"
@@ -63,9 +64,9 @@ func MapColumns(db *pgxpool.Pool, excelHeaders []string) (map[string]string, err
             WHERE $1 = ANY(string_to_array("Альтернативные имена", ';')) 
             OR "Оригинальное наименование" = $1`
 
-		err := db.QueryRow(query, header).Scan(&originalName)
+		err := db.QueryRow(context.Background(), query, header).Scan(&originalName)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if err == pgx.ErrNoRows { // Changed from sql.ErrNoRows to pgx.ErrNoRows
 				log.Printf("Предупреждение: колонка '%s' не найдена в таблице naming", header)
 				continue
 			}

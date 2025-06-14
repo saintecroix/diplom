@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -21,30 +20,25 @@ func main() {
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Graceful shutdown
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
 	// 1. Подключение к БД с бесконечными попытками
-	dbConn, err := db.ConnectDB(ctx)
+	connString := "postgres://keril:pass@db:5432/my_db" // TODO: change to env
+	dbConn, err := db.ConnectDB(connString)
 	if err != nil {
 		log.Error().Msgf("Critical DB connection error: %v", err)
 		os.Exit(1)
 	}
 	defer func() {
-		err := db.CloseDB(ctx, dbConn)
-		if err != nil {
-			log.Error().Msgf("Error closing DB connection: %v", err)
-		}
+		db.CloseDB(dbConn)
+		log.Info().Msg("Database connection closed")
 	}()
 
 	// 2. Запуск gRPC-сервера
-	port := ":50051" // Порт, на котором будет слушать сервер
 	go func() {
-		if err := grpc.StartGRPCServer(dbConn, port); err != nil {
+		if err := grpc.StartGRPCServer(dbConn); err != nil { // Исправленный вызов
 			log.Error().Msgf("Failed to start gRPC server: %v", err)
 			os.Exit(1)
 		}

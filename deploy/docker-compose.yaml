@@ -48,11 +48,7 @@ services:
     ports:
       - "50051:50051"
     environment:
-      DB_HOST: postgres_db
-      DB_PORT: 5432
-      DB_USER: keril
-      DB_PASSWORD:
-      DB_NAME: my_db
+      DATABASE_URL: postgres://keril:pass@db:5432/my_db
     depends_on:
       - db
     networks:

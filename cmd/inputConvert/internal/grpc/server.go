@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,25 +18,14 @@ import (
 
 type Server struct {
 	pb.UnimplementedInputConvertServiceServer
-	dbConn *pgxpool.Pool // Изменен тип на *pgxpool.Pool
-}
-
-func (s *Server) Run() error {
-	listen, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatal().Msgf("failed to listen: %v", err)
-	}
-	srv := grpc.NewServer()
-	pb.RegisterInputConvertServiceServer(srv, s)
-	log.Info().Msg("gRPC server listening at 50051")
-	return srv.Serve(listen)
+	dbConn *pgxpool.Pool
 }
 
 func (s *Server) UploadAndConvertExcelData(ctx context.Context, req *pb.UploadAndConvertExcelDataRequest) (*pb.UploadAndConvertExcelDataResponse, error) {
 	log.Info().Msg("Received request to convert Excel data")
 
-	connString := "postgres://keril:pass@localhost:5432/my_db" //todo change to env
-	dbpool, err := db.ConnectDB(connString)                    // Используем db.ConnectDB
+	connString := "postgres://keril:pass@db:5432/my_db" //todo change to env
+	dbpool, err := db.ConnectDB(connString)             // Используем db.ConnectDB
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to db: %v\n", err)
 		os.Exit(1)
@@ -103,23 +91,18 @@ func (s *Server) UploadAndConvertExcelData(ctx context.Context, req *pb.UploadAn
 	}, nil
 }
 
-// StartGRPCServer запускает gRPC-сервер.
-func StartGRPCServer(dbConn *sql.DB, port string) error {
-	lis, err := net.Listen("tcp", port) // Порт, на котором будет слушать сервер
+// StartGRPCServer запускает gRPC сервер
+func StartGRPCServer(dbConn *pgxpool.Pool) error {
+	listen, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatal().Msgf("Failed to listen: %v", err)
+		log.Fatal().Msgf("failed to listen: %v", err)
 		return err
 	}
 
-	s := grpc.NewServer()
-	srv := &Server{dbConn: dbpool}
-	pb.RegisterInputConvertServiceServer(s, srv) // <- передаем dbpool напрямую
-	lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Error().Msgf("failed to listen: %v", err)
-	}
-	log.Info().Msgf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Error().Msgf("failed to serve: %v", err)
-	}
+	// Create gRPC server
+	grpcServer := grpc.NewServer()
+	pb.RegisterInputConvertServiceServer(grpcServer, &Server{dbConn: dbConn}) // Регистрируем gRPC сервис
+
+	log.Info().Msg("gRPC server listening at 50051")
+	return grpcServer.Serve(listen)
 }
