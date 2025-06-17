@@ -11,7 +11,7 @@ import (
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // Default port if not specified
+		port = "8080"
 	}
 
 	mux := http.NewServeMux()
@@ -26,6 +26,6 @@ func main() {
 	log.Printf("Server listening on port %s", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
 	if err != nil {
-		log.Fatal(err)
+		log.Error().Msgf("Failed error : %v", err)
 	}
 }
