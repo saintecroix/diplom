@@ -8,12 +8,14 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/inputConvert ./cmd/inputConvert/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/webUI ./cmd/webUI/main.go
 
 FROM scratch
 
 WORKDIR /app
 
 COPY --from=builder /app/inputConvert /app/inputConvert
+
+EXPOSE 8080
 
 CMD ["/app/inputConvert"]
