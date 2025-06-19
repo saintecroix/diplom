@@ -1,0 +1,27 @@
+.table-container {
+    overflow-x: auto;
+    margin-top: 1.5rem;
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: var(--light-color);
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+tr:hover {
+    background-color: rgba(67, 97, 238, 0.05);
+}
