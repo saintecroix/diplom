@@ -14,8 +14,8 @@ FROM scratch
 
 WORKDIR /app
 
-COPY --from=builder /app/inputConvert /app/inputConvert
+COPY --from=builder /app/webUI /app/webUI
 
 EXPOSE 8080
 
-CMD ["/app/inputConvert"]
+CMD ["/app/webUI"]

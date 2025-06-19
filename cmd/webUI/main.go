@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"github.com/saintecroix/diplom/cmd/webUI/internal/web"
 	"net/http"
 	"os"
 )
@@ -16,12 +15,8 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Serve static files
-	fs := http.FileServer(http.Dir("./webUI/cmd/webUI/internal/web/static"))
+	fs := http.FileServer(http.Dir("./internal/web/static"))
 	mux.Handle("/", fs)
-
-	// Register handlers
-	web.RegisterHandlers(mux)
 
 	log.Printf("Server listening on port %s", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), mux)

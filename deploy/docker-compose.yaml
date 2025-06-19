@@ -37,7 +37,7 @@ services:
     build:
       context: ..
       dockerfile: ./cmd/inputConvert/docker/Dockerfile
-    container_name: inputconvert
+    container_name: bus_log
     restart: always
     ports:
       - "50051:50051"
