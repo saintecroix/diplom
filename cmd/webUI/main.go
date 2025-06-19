@@ -15,7 +15,8 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	fs := http.FileServer(http.Dir("./internal/web/static"))
+	fs := http.FileServer(http.Dir("./cmd/webUI/internal/web/static"))
+	log.Printf("Serving static files from: %v", fs)
 	mux.Handle("/", fs)
 
 	log.Printf("Server listening on port %s", port)

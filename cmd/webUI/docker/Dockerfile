@@ -15,6 +15,7 @@ FROM scratch
 WORKDIR /app
 
 COPY --from=builder /app/webUI /app/webUI
+COPY --from=builder /app/cmd/webUI/internal/web/static /app/cmd/webUI/internal/web/static
 
 EXPOSE 8080
 
