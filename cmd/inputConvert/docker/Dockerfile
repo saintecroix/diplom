@@ -14,7 +14,7 @@ COPY . .
 # Собираем приложение
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/inputConvert ./cmd/inputConvert/main.go
 
-FROM alpine:latest
+FROM scratch
 
 WORKDIR /app
 
