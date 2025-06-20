@@ -56,13 +56,20 @@ CREATE TABLE IF NOT EXISTS diplom_raw.wagon_operations (
 );
 ALTER TABLE diplom_raw.wagon_operations OWNER TO keril;
 
-CREATE TABLE IF NOT EXISTS diplom_raw.wg_group (
+CREATE TABLE IF NOT EXISTS diplom_raw.wagon_group (
     id SERIAL PRIMARY KEY,
     "Группа наименование" varchar(255),
-    "Вагоны" TEXT,
     "Время изменнеия данных" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
     );
-ALTER TABLE diplom_raw.wg_group OWNER TO keril;
+ALTER TABLE diplom_raw.wagon_group OWNER TO keril;
+
+CREATE TABLE IF NOT EXISTS diplom_raw.wagon (
+    id SERIAL PRIMARY KEY,
+    "Номер вагона" varchar(255),
+    group_id INT REFERENCES diplom_raw.wagon_group(id),
+    "Время изменнеия данных" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
+    );
+ALTER TABLE diplom_raw.wagon OWNER TO keril;
 
 CREATE TABLE IF NOT EXISTS diplom_raw.naming (
     id SERIAL PRIMARY KEY,
