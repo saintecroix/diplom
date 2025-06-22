@@ -3,84 +3,119 @@ package db
 import (
 	"context"
 	"fmt"
+	_ "strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
-	"strings"
 )
 
-// Postgres структура для работы с базой данных PostgreSQL
-type Postgres struct {
-	ConnString string
-}
-
-// ConnectDB устанавливает соединение с базой данных PostgreSQL, используя pgxpool
-func ConnectDB(connString string) (*pgxpool.Pool, error) {
-	dbpool, err := pgxpool.New(context.Background(), connString)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create connection pool: %w", err)
+// BulkCreateTrips сохраняет пакет поездок в БД
+func BulkCreateTrips(dbPool *pgxpool.Pool, trips []Trip) error {
+	if len(trips) == 0 {
+		return nil
 	}
 
-	// Проверка соединения (опционально)
-	err = PingDB(dbpool)
-	if err != nil {
-		return nil, fmt.Errorf("unable to ping database: %w", err)
-	}
-
-	fmt.Println("Successfully connected to PostgreSQL!")
-	return dbpool, nil
-}
-
-// PingDB проверяет соединение с базой данных
-func PingDB(dbpool *pgxpool.Pool) error {
 	ctx := context.Background()
-	err := dbpool.Ping(ctx)
+	tx, err := dbPool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("ping failed: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+	defer tx.Rollback(ctx)
+
+	// Создаем пакетный обработчик
+	batch := &pgx.Batch{}
+
+	// Подготавливаем запрос
+	query := `INSERT INTO diplom_raw.trips (
+		"Дата и время начала рейса",
+		"Номер вагона",
+		"Дорога отправления",
+		"Дорога назначения",
+		"Номер накладной",
+		"Станция отправления",
+		"Станция назначения",
+		"Наименование груза",
+		"Грузоотправитель",
+		"Грузополучатель",
+		"Тип парка (М/Т)",
+		"Тип парка (П/Г)",
+		"Время загрузки данных"
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+
+	// Добавляем все поездки в пакет
+	for _, trip := range trips {
+		batch.Queue(query,
+			trip.ДатаИВремяНачалаРейса,
+			trip.НомерВагона,
+			trip.ДорогаОтправления,
+			trip.ДорогаНазначения,
+			trip.НомерНакладной,
+			trip.СтанцияОтправления,
+			trip.СтанцияНазначения,
+			trip.НаименованиеГруза,
+			trip.Грузоотправитель,
+			trip.Грузополучатель,
+			trip.ТипПаркаМТ,
+			trip.ТипПаркаПГ,
+			trip.ВремяЗагрузкиДанных,
+		)
+	}
+
+	// Отправляем пакет
+	br := tx.SendBatch(ctx, batch)
+	defer br.Close()
+
+	// Обрабатываем результаты
+	for range trips {
+		_, err := br.Exec()
+		if err != nil {
+			return fmt.Errorf("batch insert error: %w", err)
+		}
+	}
+
+	// Фиксируем транзакцию
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("transaction commit error: %w", err)
+	}
+
+	log.Info().Int("count", len(trips)).Msg("Trips batch inserted successfully")
 	return nil
+}
+
+// ConnectDB устанавливает соединение с базой данных PostgreSQL
+func ConnectDB(connString string) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse connection string: %w", err)
+	}
+
+	config.MaxConns = 10
+	config.MinConns = 2
+	config.HealthCheckPeriod = 1 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+
+	// Проверяем соединение
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := pool.Ping(ctx); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	log.Info().Msg("Database connection established")
+	return pool, nil
 }
 
 // CloseDB закрывает соединение с базой данных
-func CloseDB(dbpool *pgxpool.Pool) {
-	dbpool.Close()
-	fmt.Println("Connection pool closed")
-}
-
-// SaveData сохраняет данные в таблицу diplom_raw.trips
-func SaveData(dbPool *pgxpool.Pool, data map[string]interface{}) error {
-	// 1. Создайте строку запроса INSERT
-	//  Здесь нужно динамически построить запрос, основываясь на ключах в data
-	//  и значениях в data.  Это более безопасно, чем просто конкатенация строк.
-
-	// 2. Подготовьте placeholders для значений
-	columns := make([]string, 0, len(data))
-	placeholders := make([]string, 0, len(data))
-	values := make([]interface{}, 0, len(data))
-	i := 1 // Placeholder index
-
-	for column, value := range data {
-		columns = append(columns, column)
-		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
-		values = append(values, value)
-		i++
+func CloseDB(pool *pgxpool.Pool) {
+	if pool != nil {
+		pool.Close()
+		log.Info().Msg("Database connection closed")
 	}
-
-	// 3.  Соберите запрос
-	query := fmt.Sprintf(
-		`INSERT INTO diplom_raw.trips (%s) VALUES (%s)`,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	// 4. Выполните запрос
-	ctx := context.Background()
-	_, err := dbPool.Exec(ctx, query, values...)
-	if err != nil {
-		log.Printf("Error inserting data into database: %v", err)
-		return fmt.Errorf("error inserting data: %w", err)
-	}
-
-	log.Printf("Data inserted successfully")
-	return nil
 }

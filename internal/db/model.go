@@ -19,16 +19,7 @@ type Trip struct {
 	Грузополучатель       string    `db:"Грузополучатель"`
 	ТипПаркаМТ            string    `db:"Тип парка (М/Т)"`
 	ТипПаркаПГ            string    `db:"Тип парка (П/Г)"`
-	ВремяЗагрузкиДанных   time.Time `db:"Время загрузки данных"` // Необязательно, ставится автоматически
-}
-
-type DBConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
+	ВремяЗагрузкиДанных   time.Time `db:"Время загрузки данных"`
 }
 
 // TripRepository определяет интерфейс для работы с таблицей trips
@@ -37,10 +28,17 @@ type TripRepository interface {
 	CreateTrip(ctx context.Context, trip *Trip) (int64, error)
 	UpdateTrip(ctx context.Context, trip *Trip) error
 	DeleteTrip(ctx context.Context, id int64) error
-	BulkCreateTrips(ctx context.Context, trips []Trip) error // Добавим метод для пакетной вставки
+	BulkCreateTrips(ctx context.Context, trips []Trip) error
 }
 
 // PostgresTripRepository - реализация TripRepository для PostgreSQL
 type PostgresTripRepository struct {
 	db *sql.DB
+}
+
+// BulkCreateTrips реализация пакетного сохранения
+func (r *PostgresTripRepository) BulkCreateTrips(ctx context.Context, trips []Trip) error {
+	// Реализация будет аналогична функции в postgres.go
+	// Можно использовать общую реализацию
+	return nil
 }

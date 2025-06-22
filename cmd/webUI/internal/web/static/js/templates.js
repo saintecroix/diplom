@@ -145,79 +145,55 @@ export function getWagonSearchPage() {
 
 export function getDataInputPage() {
   return `
-      <div class="page-data-input">
-        <h1 class="page-title">Ввод данных</h1>
-        
-        <div class="card">
-          <h2 class="card-title">Импорт данных из файла</h2>
-          <form id="import-form" class="form">
-            <div class="form-group">
-              <label for="import-file">Выберите файл</label>
-              <input type="file" id="import-file" accept=".csv, .xlsx, .xls">
-              <small>Поддерживаемые форматы: CSV, Excel</small>
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-md-8">
+          <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-cloud-upload me-2"></i>Загрузка данных о рейсах
+              </h5>
             </div>
-            <div class="form-group">
-              <label for="import-type">Тип данных</label>
-              <select id="import-type">
-                <option value="wagons">Вагоны</option>
-                <option value="operations">Операции</option>
-                <option value="locations">Местоположения</option>
-              </select>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-file-import"></i> Импортировать
-              </button>
-            </div>
-          </form>
-          <div id="import-progress" class="hidden">
-            <p>Импорт данных... <span id="import-percentage">0%</span></p>
-            <div class="progress-bar">
-              <div class="progress" id="import-progress-bar" style="width: 0%"></div>
+            <div class="card-body">
+              <div id="uploadContainer">
+                <form id="uploadForm" class="mb-4">
+                  <div class="mb-3">
+                    <label for="excelFile" class="form-label">Выберите файл Excel</label>
+                    <div class="input-group">
+                      <input class="form-control" type="file" id="excelFile" accept=".xlsx, .xls" required>
+                    </div>
+                    <div class="form-text">Поддерживаются файлы формата .xlsx и .xls</div>
+                  </div>
+                  
+                  <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                      <i class="bi bi-upload me-2"></i>Загрузить данные
+                    </button>
+                  </div>
+                </form>
+                
+                <div id="uploadProgress" class="progress mb-3" style="display: none; height: 25px;">
+                  <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                       role="progressbar" style="width: 0%">0%</div>
+                </div>
+                
+                <div id="uploadStatus" class="alert" style="display: none;"></div>
+              </div>
+              
+              <div class="mt-4">
+                <h6><i class="bi bi-info-circle me-2"></i>Инструкция по загрузке:</h6>
+                <ul class="small">
+                  <li>Файл должен содержать данные о рейсах в установленном формате</li>
+                  <li>Первая строка должна содержать заголовки столбцов</li>
+                  <li>Максимальный размер файла: 10 МБ</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
-        
-        <div class="card">
-          <h2 class="card-title">Ручной ввод операции</h2>
-          <form id="operation-form" class="form">
-            <div class="form-group">
-              <label for="operation-type">Тип операции</label>
-              <select id="operation-type">
-                <option value="movement">Перемещение</option>
-                <option value="maintenance">Обслуживание</option>
-                <option value="loading">Погрузка</option>
-                <option value="unloading">Разгрузка</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="operation-wagons">Номера вагонов</label>
-              <textarea id="operation-wagons" rows="3" placeholder="Введите номера вагонов через запятую или каждый с новой строки"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="operation-location">Местоположение</label>
-              <input type="text" id="operation-location" placeholder="Введите местоположение">
-            </div>
-            <div class="form-group">
-              <label for="operation-date">Дата операции</label>
-              <input type="date" id="operation-date">
-            </div>
-            <div class="form-group">
-              <label for="operation-notes">Примечания</label>
-              <textarea id="operation-notes" rows="3" placeholder="Дополнительная информация"></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Сохранить
-              </button>
-              <button type="reset" class="btn btn-secondary">
-                <i class="fas fa-undo"></i> Сбросить
-              </button>
-            </div>
-          </form>
-        </div>
       </div>
-    `;
+    </div>
+  `;
 }
 
 export function getAdminPage() {

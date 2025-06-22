@@ -3,49 +3,50 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"os"
-
-	"github.com/rs/zerolog/log" // Import zerolog
+	"github.com/rs/zerolog/log"
 	"net"
 
 	"github.com/saintecroix/diplom/cmd/inputConvert/internal/app"
 	pb "github.com/saintecroix/diplom/internal/api"
-	db "github.com/saintecroix/diplom/internal/db"
+	"github.com/saintecroix/diplom/internal/db"
 	"google.golang.org/grpc"
 )
 
 type Server struct {
 	pb.UnimplementedInputConvertServiceServer
-	dbConn *pgxpool.Pool
+	dbPool *pgxpool.Pool
 }
 
 func (s *Server) UploadAndConvertExcelData(ctx context.Context, req *pb.UploadAndConvertExcelDataRequest) (*pb.UploadAndConvertExcelDataResponse, error) {
+	startTime := time.Now()
 	log.Info().Msg("Received request to convert Excel data")
 
-	connString := "postgres://keril:pass@db:5432/my_db" //todo change to env
-	dbpool, err := db.ConnectDB(connString)             // Используем db.ConnectDB
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to db: %v\n", err)
-		os.Exit(1)
-	}
-	defer dbpool.Close()
-
-	// 1. Сгенерируйте уникальный job_id
+	// 1. Генерируем уникальный job_id
 	jobID := uuid.New().String()
 
 	// 2. Чтение данных из Excel
 	data, err := app.ReadExcelFromBytes(req.FileData)
 	if err != nil {
-		log.Error().Msgf("Error reading Excel file from bytes: %v", err)
+		log.Error().Err(err).Msg("Error reading Excel file from bytes")
 		return &pb.UploadAndConvertExcelDataResponse{
-			JobId: jobID, // Still return jobID even on error
+			JobId: jobID,
 			Error: err.Error(),
 		}, nil
 	}
 
-	// 3. Получение первой строки (ключи)
+	if len(data) == 0 {
+		return &pb.UploadAndConvertExcelDataResponse{
+			JobId: jobID,
+			Error: "no data in excel file",
+		}, nil
+	}
+
+	// 3. Получаем ключи из первой записи
 	firstRow := data[0]
 	keys := make([]string, 0, len(firstRow))
 	for k := range firstRow {
@@ -53,56 +54,129 @@ func (s *Server) UploadAndConvertExcelData(ctx context.Context, req *pb.UploadAn
 	}
 
 	// 4. Сопоставление колонок Excel с колонками БД
-	mappings, err := app.MapColumns(s.dbConn, keys) // Передаем dbConn
+	mappings, err := app.MapColumns(s.dbPool, keys)
 	if err != nil {
-		log.Error().Msgf("Error mapping columns: %v", err)
+		log.Error().Err(err).Msg("Error mapping columns")
 		return &pb.UploadAndConvertExcelDataResponse{
 			JobId: jobID,
 			Error: err.Error(),
 		}, nil
 	}
 
-	// 5. Обработка и сохранение данных (пока что пример)
-	var results []string
+	// 5. Конвертация данных в модели Trip
+	trips := make([]db.Trip, 0, len(data))
 	for _, item := range data {
-		mappedItem := make(map[string]interface{})
+		trip := db.Trip{
+			ВремяЗагрузкиДанных: time.Now(),
+		}
+
+		// Маппинг значений
 		for excelCol, dbCol := range mappings {
-			mappedItem[dbCol] = item[excelCol]
-		}
+			value, ok := item[excelCol].(string)
+			if !ok {
+				continue
+			}
 
-		// 6. Реализация логики сохранения данных в БД
-		err = db.SaveData(s.dbConn, mappedItem)
-		if err != nil {
-			log.Error().Msgf("Error saving data to DB: %v", err)
-			return &pb.UploadAndConvertExcelDataResponse{
-				JobId: jobID,
-				Error: fmt.Sprintf("Error saving data to DB: %v", err.Error()),
-			}, nil
+			switch dbCol {
+			case "Дата и время начала рейса":
+				if t, err := time.Parse("2006-01-02 15:04:05", value); err == nil {
+					trip.ДатаИВремяНачалаРейса = t
+				}
+			case "Номер вагона":
+				trip.НомерВагона = value
+			case "Дорога отправления":
+				trip.ДорогаОтправления = value
+			case "Дорога назначения":
+				trip.ДорогаНазначения = value
+			case "Номер накладной":
+				trip.НомерНакладной = value
+			case "Станция отправления":
+				trip.СтанцияОтправления = value
+			case "Станция назначения":
+				trip.СтанцияНазначения = value
+			case "Наименование груза":
+				trip.НаименованиеГруза = value
+			case "Грузоотправитель":
+				trip.Грузоотправитель = value
+			case "Грузополучатель":
+				trip.Грузополучатель = value
+			case "Тип парка (М/Т)":
+				trip.ТипПаркаМТ = value
+			case "Тип парка (П/Г)":
+				trip.ТипПаркаПГ = value
+			}
 		}
-
-		results = append(results, "OK")
+		trips = append(trips, trip)
 	}
 
-	// 7.  Возвращаем UploadAndConvertExcelDataResponse с job_id и сообщением
-	log.Info().Msgf("File processed successfully. Job ID: %s", jobID)
+	// 6. Сохранение данных в БД
+	if err := db.BulkCreateTrips(s.dbPool, trips); err != nil {
+		log.Error().Err(err).Msg("Error saving trips to DB")
+		return &pb.UploadAndConvertExcelDataResponse{
+			JobId: jobID,
+			Error: fmt.Sprintf("Error saving data to DB: %v", err.Error()),
+		}, nil
+	}
+
+	// 7. Формируем ответ
+	duration := time.Since(startTime)
+	log.Info().
+		Str("job_id", jobID).
+		Int("trips_processed", len(trips)).
+		Str("duration", duration.String()).
+		Msg("File processed successfully")
+
 	return &pb.UploadAndConvertExcelDataResponse{
 		JobId:   jobID,
-		Message: "File processed successfully",
+		Message: fmt.Sprintf("Processed %d trips successfully", len(trips)),
+	}, nil
+}
+
+func (s *Server) GetJobStatus(ctx context.Context, req *pb.GetJobStatusRequest) (*pb.GetJobStatusResponse, error) {
+	// TODO: Реализовать проверку статуса задачи
+	return &pb.GetJobStatusResponse{
+		Status:  pb.GetJobStatusResponse_COMPLETED,
+		Message: "Job status retrieval not implemented yet",
 	}, nil
 }
 
 // StartGRPCServer запускает gRPC сервер
-func StartGRPCServer(dbConn *pgxpool.Pool) error {
-	listen, err := net.Listen("tcp", ":50051")
+func StartGRPCServer(dbPool *pgxpool.Pool) error {
+	port := os.Getenv("GRPC_PORT")
+	if port == "" {
+		port = "50051"
+	}
+
+	listen, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatal().Msgf("failed to listen: %v", err)
 		return err
 	}
 
-	// Create gRPC server
-	grpcServer := grpc.NewServer()
-	pb.RegisterInputConvertServiceServer(grpcServer, &Server{dbConn: dbConn}) // Регистрируем gRPC сервис
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(loggingInterceptor),
+	)
+	pb.RegisterInputConvertServiceServer(grpcServer, &Server{dbPool: dbPool})
 
-	log.Info().Msg("gRPC server listening at 50051")
+	log.Info().Str("port", port).Msg("gRPC server started")
 	return grpcServer.Serve(listen)
+}
+
+func loggingInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (interface{}, error) {
+	start := time.Now()
+	resp, err := handler(ctx, req)
+	duration := time.Since(start)
+
+	log.Info().
+		Str("method", info.FullMethod).
+		Str("duration", duration.String()).
+		Err(err).
+		Msg("gRPC request processed")
+
+	return resp, err
 }
