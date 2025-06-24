@@ -69,7 +69,7 @@ func RegisterHandlers(mux *http.ServeMux, logger *zerolog.Logger, uploadDir stri
 func NewInputConvertClient(logger *zerolog.Logger) (api.InputConvertServiceClient, error) {
 	inputConvertAddress := os.Getenv("INPUT_CONVERT_ADDRESS")
 	if inputConvertAddress == "" {
-		inputConvertAddress = "localhost:50051" // Default address
+		inputConvertAddress = "bus_log:50051"
 		logger.Info().Str("address", inputConvertAddress).Msg("INPUT_CONVERT_ADDRESS not set, using default")
 	}
 

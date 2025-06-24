@@ -1,7 +1,7 @@
 syntax = "proto3";
 package api;
 
-option go_package = "github.com/saintecroix/diplom/api";
+option go_package = "github.com/saintecroix/diplom/internal/api";
 
 service InputConvertService {
   rpc UploadAndConvertExcelData(UploadAndConvertExcelDataRequest) returns (UploadAndConvertExcelDataResponse) {}

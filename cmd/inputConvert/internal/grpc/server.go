@@ -147,7 +147,7 @@ func StartGRPCServer(dbPool *pgxpool.Pool) error {
 		port = "50051"
 	}
 
-	listen, err := net.Listen("tcp", ":"+port)
+	listen, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
 		log.Fatal().Msgf("failed to listen: %v", err)
 		return err
