@@ -239,78 +239,116 @@ function initDataInputHandlers() {
   const progressContainer = document.getElementById('uploadProgress');
   const statusDiv = document.getElementById('uploadStatus');
 
-  if (uploadForm) {
-    uploadForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+  // Проверка элементов
+  if (!uploadForm || !fileInput || !progressBar || !progressContainer || !statusDiv) {
+    console.error('One or more form elements are missing!');
+    return;
+  }
 
-      // Проверяем, выбран ли файл
-      if (!fileInput.files || fileInput.files.length === 0) {
-        showStatus('Пожалуйста, выберите файл для загрузки', 'danger', statusDiv);
-        return;
-      }
+  uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-      const file = fileInput.files[0];
+    // Сбрасываем предыдущий статус
+    statusDiv.innerHTML = '';
+    statusDiv.className = 'alert';
+    statusDiv.style.display = 'none';
 
-      // Проверяем размер файла (макс. 10 МБ)
-      if (file.size > 10 * 1024 * 1024) {
-        showStatus('Файл слишком большой. Максимальный размер: 10 МБ', 'danger', statusDiv);
-        return;
-      }
+    // Проверка файла
+    if (!fileInput.files || fileInput.files.length === 0) {
+      showStatus('Пожалуйста, выберите файл для загрузки', 'danger', statusDiv);
+      return;
+    }
 
-      // Показываем прогресс-бар
-      progressContainer.style.display = 'block';
-      progressBar.style.width = '0%';
-      progressBar.textContent = '0%';
+    const file = fileInput.files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      showStatus('Файл слишком большой. Максимальный размер: 10 МБ', 'danger', statusDiv);
+      return;
+    }
 
-      // Блокируем форму на время загрузки
-      uploadForm.querySelector('button').disabled = true;
+    // Настройка UI
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.textContent = '0%';
+    showLoader();
 
-      try {
-        // Вызываем функцию загрузки
-        const result = await uploadExcelFile(file, (progress) => {
-          progressBar.style.width = `${progress}%`;
-          progressBar.textContent = `${progress}%`;
-        });
+    const submitBtn = uploadForm.querySelector('button');
+    submitBtn.disabled = true;
+    submitBtn.classList.add('btn-loading');
 
-        // Показываем результат
+    try {
+      const result = await uploadExcelFile(file, (progress) => {
+        progressBar.style.width = `${progress}%`;
+        progressBar.textContent = `${progress}%`;
+      });
+
+      // Обработка ответа сервера
+      if (result.error || (result.details && result.details.error)) {
+        const errorMsg = result.error || result.details.error || 'Неизвестная ошибка';
         showStatus(
-            `<strong>Файл успешно загружен!</strong><br>
-           Имя файла: ${file.name}<br>
-           Размер: ${formatFileSize(file.size)}<br>
-           Результат: ${result.message}`,
-            'success',
-            statusDiv
-        );
-
-        // Сбрасываем форму
-        uploadForm.reset();
-      } catch (error) {
-        showStatus(
-            `<strong>Ошибка загрузки:</strong><br>${error.message}`,
+            `<strong>Ошибка обработки файла:</strong><br>${errorMsg}`,
             'danger',
             statusDiv
         );
-      } finally {
-        // Восстанавливаем форму
-        uploadForm.querySelector('button').disabled = false;
-        progressContainer.style.display = 'none';
+      } else {
+        showStatus(
+            `<strong>Файл успешно обработан!</strong><br>
+                     Файл: ${file.name}<br>
+                     Сообщение: ${result.message}`,
+            'success',
+            statusDiv
+        );
+        uploadForm.reset();
       }
-    });
-  }
+    } catch (error) {
+      // Все ошибки сети и парсинга
+      showStatus(
+          `<strong>Ошибка загрузки:</strong><br>${error.message}`,
+          'danger',
+          statusDiv
+      );
+      console.error('Upload error:', error);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('btn-loading');
+      progressContainer.style.display = 'none';
+      hideLoader();
+    }
+  });
 }
 
-// Функция для отображения статуса
+// Функция отображения статуса
 function showStatus(message, type, container) {
-  container.innerHTML = message;
-  container.className = `alert alert-${type}`;
-  container.style.display = 'block';
-
-  // Автоматическое скрытие через 5 секунд для успешных сообщений
-  if (type === 'success') {
-    setTimeout(() => {
-      container.style.display = 'none';
-    }, 5000);
+  // Проверка контейнера
+  if (!container || !(container instanceof HTMLElement)) {
+    console.error('Invalid status container');
+    return;
   }
+
+  // Создаем внутренний контейнер для сообщения
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert-content alert-${type}`;
+  alertDiv.innerHTML = `
+        <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+        <span class="alert-message">${message}</span>
+    `;
+
+  // Очищаем предыдущее содержимое
+  container.innerHTML = '';
+  container.appendChild(alertDiv);
+
+  // Применяем стили
+  container.className = `status-container ${type}`;
+  container.style.display = 'block';
+  container.style.opacity = '1';
+
+  // Анимация появления
+  container.animate([
+    { opacity: 0, transform: 'translateY(-20px)' },
+    { opacity: 1, transform: 'translateY(0)' }
+  ], {
+    duration: 300,
+    easing: 'ease-out'
+  });
 }
 
 // Форматирование размера файла

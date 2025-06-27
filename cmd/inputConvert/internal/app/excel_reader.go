@@ -62,6 +62,12 @@ func ReadExcelFromBytes(fileData []byte) ([]map[string]interface{}, error) {
 		data = append(data, item)
 	}
 
+	if len(data) > 0 {
+		logger := log.With().Logger()
+		logger.Info().Interface("headers", headers).Msg("Excel headers")
+		logger.Info().Interface("first_row", data[0]).Msg("First data row")
+	}
+
 	return data, nil
 }
 

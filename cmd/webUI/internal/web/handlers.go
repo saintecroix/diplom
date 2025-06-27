@@ -89,7 +89,7 @@ func (w *Web) uploadHandler(wr http.ResponseWriter, r *http.Request) {
 	// Определяем тип контента
 	contentType := r.Header.Get("Content-Type")
 
-	// Обработка multipart/form-data (новый фронтенд)
+	// Обработка multipart/form-data
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		// Парсим форму с ограничением размера 10MB
 		err = r.ParseMultipartForm(10 << 20)
@@ -168,12 +168,14 @@ func (w *Web) uploadHandler(wr http.ResponseWriter, r *http.Request) {
 
 	// Отправляем запрос в inputConvert сервис
 	ctx := context.Background()
+	w.logger.Info().Msg("Calling gRPC service...")
 	resp, err := w.client.UploadAndConvertExcelData(ctx, grpcReq)
 	if err != nil {
-		w.logger.Error().Err(err).Msg("Error calling ConvertExcelData")
+		w.logger.Error().Err(err).Msg("gRPC call failed")
 		http.Error(wr, "Failed to convert data", http.StatusInternalServerError)
 		return
 	}
+	w.logger.Info().Str("job_id", resp.JobId).Msg("gRPC call successful")
 
 	// Обрабатываем ответ от inputConvert сервиса
 	w.logger.Info().Interface("response", resp).Msg("Received response from gRPC service")

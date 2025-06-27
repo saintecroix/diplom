@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	_ "strings"
 	"time"
 
@@ -13,11 +15,24 @@ import (
 
 // BulkCreateTrips сохраняет пакет поездок в БД
 func BulkCreateTrips(dbPool *pgxpool.Pool, trips []Trip) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := dbPool.Ping(ctx); err != nil {
+		log.Error().Err(err).Msg("Database ping failed")
+		return err
+	}
+	log.Info().Int("count", len(trips)).Msg("Starting bulk insert")
+
+	// Временное логирование первой записи
+	if len(trips) > 0 {
+		tripJson, _ := json.Marshal(trips[0])
+		log.Info().RawJSON("first_trip", tripJson).Msg("First trip data")
+	}
 	if len(trips) == 0 {
 		return nil
 	}
 
-	ctx := context.Background()
 	tx, err := dbPool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -86,6 +101,7 @@ func BulkCreateTrips(dbPool *pgxpool.Pool, trips []Trip) error {
 
 // ConnectDB устанавливает соединение с базой данных PostgreSQL
 func ConnectDB(connString string) (*pgxpool.Pool, error) {
+	log.Info().Str("conn_string", maskPassword(connString)).Msg("Connecting to DB")
 	config, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse connection string: %w", err)
@@ -110,6 +126,10 @@ func ConnectDB(connString string) (*pgxpool.Pool, error) {
 
 	log.Info().Msg("Database connection established")
 	return pool, nil
+}
+
+func maskPassword(connString string) string {
+	return regexp.MustCompile(`password=\w+`).ReplaceAllString(connString, "password=***")
 }
 
 // CloseDB закрывает соединение с базой данных

@@ -1,0 +1,24 @@
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.alert-danger i {
+    color: #dc3545;
+}
+
+/* Анимация для ошибок */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.alert-danger {
+    animation: shake 0.5s ease-in-out;
+}
+
+#uploadStatus {
+    display: block !important;
+}

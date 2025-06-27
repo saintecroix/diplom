@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,11 +14,10 @@ import (
 )
 
 func main() {
-	// Recovery from panic
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error().Msgf("Recovered from panic: %v", r)
-			os.Exit(1)
+			log.Error().Interface("panic", r).Msg("Recovered from panic")
+			panic(r)
 		}
 	}()
 
@@ -31,6 +32,7 @@ func main() {
 		log.Error().Msgf("Critical DB connection error: %v", err)
 		os.Exit(1)
 	}
+	CheckTableSchema(dbConn)
 	defer func() {
 		db.CloseDB(dbConn)
 		log.Info().Msg("Database connection closed")
@@ -49,4 +51,23 @@ func main() {
 	log.Info().Msg("Shutting down...")
 	fmt.Println("Gracefully stopping the service")
 	os.Exit(0)
+}
+
+func CheckTableSchema(dbPool *pgxpool.Pool) {
+	query := `SELECT column_name, data_type 
+             FROM information_schema.columns 
+             WHERE table_schema = 'diplom_raw' 
+             AND table_name = 'trips'`
+
+	rows, err := dbPool.Query(context.Background(), query)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to check table schema")
+		return
+	}
+
+	for rows.Next() {
+		var colName, dataType string
+		rows.Scan(&colName, &dataType)
+		log.Info().Str("column", colName).Str("type", dataType).Msg("Table column")
+	}
 }

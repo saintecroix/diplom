@@ -23,6 +23,14 @@ type Server struct {
 }
 
 func (s *Server) UploadAndConvertExcelData(ctx context.Context, req *pb.UploadAndConvertExcelDataRequest) (*pb.UploadAndConvertExcelDataResponse, error) {
+	log.Info().Msg("===== REQUEST RECEIVED =====")
+	log.Info().Str("filename", req.Filename).Int("size", len(req.FileData)).Msg("File received")
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("recover", r).Msg("Panic recovered")
+		}
+	}()
 	startTime := time.Now()
 	log.Info().Msg("Received request to convert Excel data")
 
