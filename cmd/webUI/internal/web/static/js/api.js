@@ -14,21 +14,35 @@ export async function uploadExcelFile(file, progressCallback) {
         });
 
         xhr.addEventListener('load', () => {
-            console.log('Response status:', xhr.status, 'Response:', xhr.responseText);
+            // Удаляем отладочный вывод в продакшене
+            // console.log('Response status:', xhr.status, 'Response:', xhr.responseText);
 
             try {
                 const response = JSON.parse(xhr.responseText);
 
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve(response);
+                    // Успешный ответ (2xx)
+                    if (response.status === "success") {
+                        resolve(response);
+                    } else {
+                        // Обработка бизнес-ошибок (успешный HTTP но ошибка в логике)
+                        const error = new Error(response.message || "Unknown server error");
+                        error.response = response;
+                        error.isBusinessError = true;
+                        reject(error);
+                    }
                 } else {
-                    const error = new Error(response.error || `Server error: ${xhr.status}`);
+                    // Ошибки HTTP (4xx, 5xx)
+                    const error = new Error(response.message || `Server error: ${xhr.status}`);
                     error.response = response;
+                    error.statusCode = xhr.status;
                     reject(error);
                 }
             } catch (e) {
-                const error = new Error(`Invalid JSON response: ${xhr.responseText.substring(0, 100)}...`);
-                error.response = xhr.responseText;
+                // Ошибка парсинга JSON
+                const error = new Error(`Invalid server response: ${xhr.responseText.substring(0, 100)}...`);
+                error.responseText = xhr.responseText;
+                error.statusCode = xhr.status;
                 reject(error);
             }
         });
@@ -47,6 +61,27 @@ export async function uploadExcelFile(file, progressCallback) {
         };
 
         xhr.open('POST', `${API_BASE}/upload`);
+        xhr.setRequestHeader('Accept', 'application/json'); // Явно запрашиваем JSON
         xhr.send(formData);
     });
+}
+
+export function handleUploadError(error, statusDiv) {
+    let errorMessage = 'Unknown error';
+
+    if (error.message.includes('Network error')) {
+        errorMessage = 'Сетевая ошибка. Проверьте подключение к интернету';
+    } else if (error.message.includes('timed out')) {
+        errorMessage = 'Превышено время ожидания ответа сервера';
+    } else if (error.statusCode === 413) {
+        errorMessage = 'Файл слишком большой. Максимальный размер 10 МБ';
+    } else if (error.statusCode === 415) {
+        errorMessage = 'Неподдерживаемый формат файла';
+    } else if (error.isBusinessError) {
+        errorMessage = error.message;
+    } else {
+        errorMessage = `Ошибка сервера: ${error.message}`;
+    }
+
+    return `<strong>Ошибка загрузки:</strong><br>${errorMessage}`;
 }

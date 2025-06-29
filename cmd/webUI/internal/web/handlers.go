@@ -82,37 +82,46 @@ func NewInputConvertClient(logger *zerolog.Logger) (api.InputConvertServiceClien
 }
 
 func (w *Web) uploadHandler(wr http.ResponseWriter, r *http.Request) {
+	wr.Header().Set("Content-Type", "application/json")
+
 	var fileData []byte
 	var fileName string
 	var err error
 
-	// Определяем тип контента
 	contentType := r.Header.Get("Content-Type")
 
-	// Обработка multipart/form-data
 	if strings.HasPrefix(contentType, "multipart/form-data") {
-		// Парсим форму с ограничением размера 10MB
 		err = r.ParseMultipartForm(10 << 20)
 		if err != nil {
 			w.logger.Error().Err(err).Msg("Error parsing multipart form")
-			http.Error(wr, "Error parsing form", http.StatusBadRequest)
+			wr.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(wr).Encode(map[string]string{
+				"status":  "error",
+				"message": "Ошибка при разборе формы: " + err.Error(),
+			})
 			return
 		}
 
-		// Получаем файл из формы
 		file, handler, err := r.FormFile("file")
 		if err != nil {
 			w.logger.Error().Err(err).Msg("Error retrieving file from form")
-			http.Error(wr, "Error retrieving file", http.StatusBadRequest)
+			wr.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(wr).Encode(map[string]string{
+				"status":  "error",
+				"message": "Ошибка при получении файла: " + err.Error(),
+			})
 			return
 		}
 		defer file.Close()
 
-		// Читаем содержимое файла
 		fileData, err = io.ReadAll(file)
 		if err != nil {
 			w.logger.Error().Err(err).Msg("Error reading file")
-			http.Error(wr, "Error reading file", http.StatusInternalServerError)
+			wr.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(wr).Encode(map[string]string{
+				"status":  "error",
+				"message": "Ошибка чтения файла: " + err.Error(),
+			})
 			return
 		}
 
@@ -120,84 +129,82 @@ func (w *Web) uploadHandler(wr http.ResponseWriter, r *http.Request) {
 	} else if strings.HasPrefix(contentType, "application/json") {
 		var req struct {
 			Filename string `json:"filename"`
-			Data     string `json:"data"` // base64 строка
+			Data     string `json:"data"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.logger.Error().Err(err).Msg("Failed to decode JSON")
-			http.Error(wr, "Invalid request body", http.StatusBadRequest)
+			wr.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(wr).Encode(map[string]string{
+				"status":  "error",
+				"message": "Неверный формат JSON: " + err.Error(),
+			})
 			return
 		}
 
-		// Декодируем base64
 		fileData, err = base64.StdEncoding.DecodeString(req.Data)
 		if err != nil {
 			w.logger.Error().Err(err).Msg("Invalid base64 data")
-			http.Error(wr, "Invalid file data", http.StatusBadRequest)
+			wr.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(wr).Encode(map[string]string{
+				"status":  "error",
+				"message": "Неверные данные Base64: " + err.Error(),
+			})
 			return
 		}
 
 		fileName = req.Filename
 	} else {
-		http.Error(wr, "Unsupported media type", http.StatusUnsupportedMediaType)
+		wr.WriteHeader(http.StatusUnsupportedMediaType)
+		json.NewEncoder(wr).Encode(map[string]string{
+			"status":  "error",
+			"message": "Неподдерживаемый тип контента: " + contentType,
+		})
 		return
 	}
 
-	// Создаем уникальное имя файла
 	tempFileName := filepath.Join(w.uploadDir, time.Now().Format("20060102-150405")+"-"+fileName)
 
-	// Сохраняем файл на диск
 	if err := os.WriteFile(tempFileName, fileData, 0644); err != nil {
 		w.logger.Error().Err(err).Str("file", tempFileName).Msg("Failed to save file")
-		http.Error(wr, "Server error", http.StatusInternalServerError)
+		wr.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(wr).Encode(map[string]string{
+			"status":  "error",
+			"message": "Ошибка сохранения файла: " + err.Error(),
+		})
 		return
 	}
 
-	// Гарантируем удаление файла
 	defer func() {
 		if err := os.Remove(tempFileName); err != nil {
 			w.logger.Error().Err(err).Str("file", tempFileName).Msg("Failed to delete temp file")
 		}
 	}()
 
-	// Создаем gRPC запрос
 	grpcReq := &api.UploadAndConvertExcelDataRequest{
 		FileData: fileData,
 		Filename: fileName,
 	}
 
-	// Отправляем запрос в inputConvert сервис
 	ctx := context.Background()
 	w.logger.Info().Msg("Calling gRPC service...")
 	resp, err := w.client.UploadAndConvertExcelData(ctx, grpcReq)
 	if err != nil {
 		w.logger.Error().Err(err).Msg("gRPC call failed")
-		http.Error(wr, "Failed to convert data", http.StatusInternalServerError)
+		wr.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(wr).Encode(map[string]string{
+			"status":  "error",
+			"message": "Ошибка обработки файла: " + err.Error(),
+		})
 		return
 	}
 	w.logger.Info().Str("job_id", resp.JobId).Msg("gRPC call successful")
 
-	// Обрабатываем ответ от inputConvert сервиса
-	w.logger.Info().Interface("response", resp).Msg("Received response from gRPC service")
-
-	// Формируем JSON-ответ
-	wr.Header().Set("Content-Type", "application/json")
-	wr.WriteHeader(http.StatusOK)
-
-	// Для нового фронтенда возвращаем упрощенный ответ
-	if strings.HasPrefix(contentType, "multipart/form-data") {
-		json.NewEncoder(wr).Encode(map[string]interface{}{
-			"status":  "success",
-			"message": fmt.Sprintf("Файл %s успешно обработан", fileName),
-		})
-	} else {
-		// Для старого формата возвращаем полный ответ
-		json.NewEncoder(wr).Encode(map[string]interface{}{
-			"status":  "success",
-			"message": "File processed and converted",
-			"details": resp,
-		})
-	}
+	json.NewEncoder(wr).Encode(map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Файл %s успешно обработан", fileName),
+		"job_id":  resp.JobId,
+	})
 }
 
 // Функции-заглушки для совместимости

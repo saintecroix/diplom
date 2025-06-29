@@ -1,4 +1,4 @@
-import { showModal, hideModal, showNotification, markInputAsError, clearInputErrors } from './dom.js';
+import { showModal, hideModal, showNotification, markInputAsError, clearInputErrors, showLoader, hideLoader } from './dom.js';
 import { getUserEditForm } from './templates.js';
 import { loadPage } from './router.js';
 import { uploadExcelFile } from './api.js';
