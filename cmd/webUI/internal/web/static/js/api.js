@@ -14,74 +14,87 @@ export async function uploadExcelFile(file, progressCallback) {
         });
 
         xhr.addEventListener('load', () => {
-            // Удаляем отладочный вывод в продакшене
-            // console.log('Response status:', xhr.status, 'Response:', xhr.responseText);
-
             try {
-                const response = JSON.parse(xhr.responseText);
+                const response = xhr.responseText ? JSON.parse(xhr.responseText) : {};
 
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    // Успешный ответ (2xx)
                     if (response.status === "success") {
-                        resolve(response);
+                        resolve({
+                            ...response,
+                            fileName: file.name,
+                            fileSize: file.size
+                        });
                     } else {
-                        // Обработка бизнес-ошибок (успешный HTTP но ошибка в логике)
-                        const error = new Error(response.message || "Unknown server error");
-                        error.response = response;
-                        error.isBusinessError = true;
+                        // Обработка бизнес-ошибок из gRPC
+                        const error = new Error(response.message || "Ошибка обработки файла");
+                        error.type = "business";
+                        error.details = response.error || "Неизвестная ошибка сервера"; // Используем поле error из gRPC
+                        error.jobId = response.job_id; // Добавляем jobId для отслеживания
                         reject(error);
                     }
                 } else {
-                    // Ошибки HTTP (4xx, 5xx)
-                    const error = new Error(response.message || `Server error: ${xhr.status}`);
-                    error.response = response;
-                    error.statusCode = xhr.status;
+                    const error = new Error(
+                        response.message ||
+                        `Ошибка сервера (${xhr.status}: ${xhr.statusText})`
+                    );
+                    error.type = "http";
+                    error.status = xhr.status;
                     reject(error);
                 }
             } catch (e) {
-                // Ошибка парсинга JSON
-                const error = new Error(`Invalid server response: ${xhr.responseText.substring(0, 100)}...`);
-                error.responseText = xhr.responseText;
-                error.statusCode = xhr.status;
+                const error = new Error("Неверный формат ответа сервера");
+                error.type = "parse";
+                error.originalError = e;
                 reject(error);
             }
         });
 
         xhr.addEventListener('error', () => {
-            reject(new Error('Network error: Failed to send request'));
+            reject(new Error('Сетевая ошибка при отправке запроса'));
         });
 
         xhr.addEventListener('abort', () => {
-            reject(new Error('Request aborted'));
+            reject(new Error('Запрос был отменён'));
         });
 
-        xhr.timeout = 300000; // 5 минут
+        xhr.timeout = 300000;
         xhr.ontimeout = () => {
-            reject(new Error('Request timed out'));
+            reject(new Error('Превышено время ожидания ответа'));
         };
 
         xhr.open('POST', `${API_BASE}/upload`);
-        xhr.setRequestHeader('Accept', 'application/json'); // Явно запрашиваем JSON
+        xhr.setRequestHeader('Accept', 'application/json');
         xhr.send(formData);
     });
 }
 
-export function handleUploadError(error, statusDiv) {
-    let errorMessage = 'Unknown error';
+export function handleUploadError(error) {
+    let message = 'Произошла ошибка при загрузке файла';
+    let details = '';
 
-    if (error.message.includes('Network error')) {
-        errorMessage = 'Сетевая ошибка. Проверьте подключение к интернету';
-    } else if (error.message.includes('timed out')) {
-        errorMessage = 'Превышено время ожидания ответа сервера';
-    } else if (error.statusCode === 413) {
-        errorMessage = 'Файл слишком большой. Максимальный размер 10 МБ';
-    } else if (error.statusCode === 415) {
-        errorMessage = 'Неподдерживаемый формат файла';
-    } else if (error.isBusinessError) {
-        errorMessage = error.message;
-    } else {
-        errorMessage = `Ошибка сервера: ${error.message}`;
+    switch (error.type) {
+        case 'business':
+            message = 'Ошибка обработки файла';
+            details = error.details ? `<br><small>${error.details}</small>` : '';
+            if (error.jobId) {
+                details += `<br><small>ID задачи: ${error.jobId}</small>`;
+            }
+            break;
+        case 'http':
+            message = `Ошибка сервера (${error.status || 'неизвестный статус'})`;
+            details = error.message ? `<br><small>${error.message}</small>` : '';
+            break;
+        case 'parse':
+            message = 'Ошибка обработки ответа сервера';
+            details = '<br><small>Сервер вернул некорректные данные</small>';
+            break;
+        default:
+            details = error.message ? `<br><small>${error.message}</small>` : '';
     }
 
-    return `<strong>Ошибка загрузки:</strong><br>${errorMessage}`;
+    return {
+        title: message,
+        details: details,
+        isError: true
+    };
 }

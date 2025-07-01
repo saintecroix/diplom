@@ -4,6 +4,7 @@ import { initPageHandlers } from './handlers.js';
 import {
   getHomePage,
   getWagonSearchPage,
+  getGroupManagePage,
   getDataInputPage,
   getAdminPage,
   getTransportationsPage
@@ -20,6 +21,9 @@ export function loadPage(page) {
         break;
       case 'wagon-search':
         content = getWagonSearchPage();
+        break;
+      case 'group-manage':
+        content = getGroupManagePage();
         break;
       case 'data-input':
         content = getDataInputPage();

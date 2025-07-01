@@ -198,7 +198,76 @@ func (w *Web) uploadHandler(wr http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	w.logger.Info().Str("job_id", resp.JobId).Msg("gRPC call successful")
+
+	// Проверяем, есть ли сразу ошибка в первом ответе
+	if resp.Error != "" {
+		w.logger.Error().
+			Str("job_id", resp.JobId).
+			Str("error", resp.Error).
+			Msg("Immediate processing error")
+
+		wr.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(wr).Encode(map[string]interface{}{
+			"status":  "error",
+			"message": "Ошибка обработки: " + resp.Error,
+			"job_id":  resp.JobId,
+		})
+		return
+	}
+
+	// Добавляем проверку статуса через новый gRPC-метод
+	statusResp, err := w.client.GetJobStatus(ctx, &api.GetJobStatusRequest{JobId: resp.JobId})
+	if err != nil {
+		w.logger.Error().
+			Err(err).
+			Str("job_id", resp.JobId).
+			Msg("Failed to get job status")
+
+		wr.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(wr).Encode(map[string]interface{}{
+			"status":  "error",
+			"message": "Ошибка проверки статуса задачи: " + err.Error(),
+			"job_id":  resp.JobId,
+		})
+		return
+	}
+
+	// Проверяем статус через enum
+	if statusResp.Status != api.GetJobStatusResponse_COMPLETED {
+		errorMsg := "Загрузка данных не завершена"
+		if statusResp.Error != "" {
+			errorMsg = statusResp.Error
+		} else {
+			// Формируем сообщение в зависимости от статуса
+			switch statusResp.Status {
+			case api.GetJobStatusResponse_FAILED:
+				errorMsg = "Ошибка загрузки данных"
+			case api.GetJobStatusResponse_PROCESSING:
+				errorMsg = "Данные все еще обрабатываются"
+			case api.GetJobStatusResponse_PENDING:
+				errorMsg = "Загрузка данных еще не началась"
+			}
+		}
+
+		w.logger.Error().
+			Str("job_id", resp.JobId).
+			Str("status", statusResp.Status.String()).
+			Str("error", statusResp.Error).
+			Msg("Data loading failed")
+
+		wr.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(wr).Encode(map[string]interface{}{
+			"status":  "error",
+			"message": errorMsg,
+			"job_id":  resp.JobId,
+			"details": statusResp.Message,
+		})
+		return
+	}
+
+	w.logger.Info().
+		Str("job_id", resp.JobId).
+		Msg("Data successfully loaded to DB")
 
 	json.NewEncoder(wr).Encode(map[string]interface{}{
 		"status":  "success",

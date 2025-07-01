@@ -1,24 +1,45 @@
+.status-container {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 4px;
+    display: none; /* Изначально скрыт, но будет показан при ошибке/успехе */
+}
+
 .alert-danger {
     background-color: #f8d7da;
-    border-color: #f5c6cb;
+    border: 1px solid #f5c6cb;
     color: #721c24;
 }
 
-.alert-danger i {
-    color: #dc3545;
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
 }
 
-/* Анимация для ошибок */
+.alert-shake {
+    animation: shake 0.5s ease-in-out;
+}
+
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
 }
 
-.alert-danger {
-    animation: shake 0.5s ease-in-out;
+.progress {
+    height: 20px;
+    margin: 1rem 0;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
 }
 
-#uploadStatus {
-    display: block !important;
+.progress-bar {
+    background-color: #007bff;
+    transition: width 0.3s ease;
+    color: white;
+    text-align: center;
+    line-height: 20px;
+    font-size: 12px;
 }

@@ -143,6 +143,34 @@ export function getWagonSearchPage() {
     `;
 }
 
+export function getGroupManagePage() {
+  return `
+      <div class="page-group-manage">
+        <h1 class="page-title">Управление группами вагонов</h1>
+        
+        <div class="card">
+          <h2 class="card-title">Создание группы вагонов</h2>
+          <form id="create-group-form" class="form">
+            <div class="form-group">
+              <label for="group-name">Название группы</label>
+              <input type="text" id="group-name" placeholder="Введите название группы">
+            </div>
+            <div class="form-group">
+              <label for="wagon-numbers">Номера вагонов</label>
+              <textarea id="wagon-numbers" rows="4" placeholder="Введите номера вагонов через запятую или каждый с новой строки"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Создать группу
+              </button>
+            </div>
+          </form>
+        </div>
+        
+      </div>
+    `;
+}
+
 export function getDataInputPage() {
   return `
     <div class="container mt-5">
@@ -505,7 +533,6 @@ export function getTransportationsPage() {
       </div>
     `;
 }
-
 
 export function getUserEditForm(user) {
   return `

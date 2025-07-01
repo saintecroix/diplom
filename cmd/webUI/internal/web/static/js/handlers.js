@@ -1,7 +1,7 @@
 import { showModal, hideModal, showNotification, markInputAsError, clearInputErrors, showLoader, hideLoader } from './dom.js';
 import { getUserEditForm } from './templates.js';
 import { loadPage } from './router.js';
-import { uploadExcelFile } from './api.js';
+import { uploadExcelFile, handleUploadError } from './api.js';
 
 // Другие функции...
 
@@ -239,21 +239,20 @@ function initDataInputHandlers() {
   const progressContainer = document.getElementById('uploadProgress');
   const statusDiv = document.getElementById('uploadStatus');
 
-  // Проверка элементов
   if (!uploadForm || !fileInput || !progressBar || !progressContainer || !statusDiv) {
-    console.error('One or more form elements are missing!');
+    console.error('Missing required elements!');
     return;
   }
 
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Сбрасываем предыдущий статус
+    // Сброс состояния
     statusDiv.innerHTML = '';
     statusDiv.className = 'alert';
-    statusDiv.style.display = 'none';
+    statusDiv.style.display = 'block';
 
-    // Проверка файла
+    // Валидация файла
     if (!fileInput.files || fileInput.files.length === 0) {
       showStatus('Пожалуйста, выберите файл для загрузки', 'danger', statusDiv);
       return;
@@ -281,32 +280,28 @@ function initDataInputHandlers() {
         progressBar.textContent = `${progress}%`;
       });
 
-      // Обработка ответа сервера
-      if (result.error || (result.details && result.details.error)) {
-        const errorMsg = result.error || result.details.error || 'Неизвестная ошибка';
-        showStatus(
-            `<strong>Ошибка обработки файла:</strong><br>${errorMsg}`,
-            'danger',
-            statusDiv
-        );
-      } else {
-        showStatus(
-            `<strong>Файл успешно обработан!</strong><br>
-                     Файл: ${file.name}<br>
-                     Сообщение: ${result.message}`,
-            'success',
-            statusDiv
-        );
-        uploadForm.reset();
-      }
-    } catch (error) {
-      // Все ошибки сети и парсинга
       showStatus(
-          `<strong>Ошибка загрузки:</strong><br>${error.message}`,
+          `<strong>Файл успешно загружен!</strong><br>
+         Имя: ${result.fileName}<br>
+         Размер: ${formatFileSize(result.fileSize)}`,
+          'success',
+          statusDiv
+      );
+
+      uploadForm.reset();
+
+    } catch (error) {
+      console.error('Upload error:', error);
+
+      const errorInfo = handleUploadError(error);
+      showStatus(
+          `<strong>${errorInfo.title}</strong>${errorInfo.details}`,
           'danger',
           statusDiv
       );
-      console.error('Upload error:', error);
+
+      statusDiv.classList.add('alert-shake');
+      setTimeout(() => statusDiv.classList.remove('alert-shake'), 500);
     } finally {
       submitBtn.disabled = false;
       submitBtn.classList.remove('btn-loading');
