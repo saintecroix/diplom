@@ -11,7 +11,10 @@ export function initPageHandlers(page) {
       // Обработчики для главной страницы
       break;
     case 'wagon-search':
-      initWagonHandlers();
+      //initWagonHandlers();
+      break;
+    case 'group-manage':
+      //функции для group-manage
       break;
     case 'data-input':
       initDataInputHandlers();

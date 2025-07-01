@@ -1,11 +1,12 @@
 import { elements, showLoader, hideLoader } from './dom.js';
 import { initPageHandlers } from './handlers.js';
-import { 
+import {
   getHomePage,
   getWagonSearchPage,
   getDataInputPage,
   getAdminPage,
-  getTransportationsPage
+  getTransportationsPage,
+  getGroupManagePage
 } from './templates.js';
 
 export function setupRouter() {
@@ -30,6 +31,9 @@ export function loadPage(page) {
       break;
     case 'wagon-search':
       content = getWagonSearchPage();
+      break;
+    case 'group-manage':
+      content = getGroupManagePage();
       break;
     case 'data-input':
       content = getDataInputPage();

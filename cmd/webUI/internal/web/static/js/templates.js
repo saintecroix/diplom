@@ -68,7 +68,7 @@ export function getWagonSearchPage() {
   return `
       <div class="page-wagon-search">
         <h1 class="page-title">Поиск и управление вагонами</h1>
-        
+
         <div class="card">
           <h2 class="card-title">Поиск вагонов</h2>
           <form id="wagon-search-form" class="form">
@@ -99,26 +99,7 @@ export function getWagonSearchPage() {
             </div>
           </form>
         </div>
-        
-        <div class="card">
-          <h2 class="card-title">Создание группы вагонов</h2>
-          <form id="create-group-form" class="form">
-            <div class="form-group">
-              <label for="group-name">Название группы</label>
-              <input type="text" id="group-name" placeholder="Введите название группы">
-            </div>
-            <div class="form-group">
-              <label for="wagon-numbers">Номера вагонов</label>
-              <textarea id="wagon-numbers" rows="4" placeholder="Введите номера вагонов через запятую или каждый с новой строки"></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Создать группу
-              </button>
-            </div>
-          </form>
-        </div>
-        
+
         <div class="card">
           <h2 class="card-title">Результаты поиска</h2>
           <div class="table-container">
