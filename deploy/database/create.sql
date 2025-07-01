@@ -33,33 +33,37 @@ CREATE TABLE IF NOT EXISTS diplom_raw.trips (
     );
 ALTER TABLE diplom_raw.trips OWNER TO keril;
 
-CREATE TABLE IF NOT EXISTS diplom_raw.wagon_operations (
+CREATE TABLE IF NOT EXISTS diplom_raw.road(
     id SERIAL PRIMARY KEY,
-    "Группа наименование" VARCHAR(255),
-    "Вагон" VARCHAR(20),
-    "Дата операции" TIMESTAMP WITHOUT TIME ZONE,
-    "Операция" VARCHAR(255),
-    "Ст. опер." VARCHAR(100),
-    "Дрг. опер." VARCHAR(100),
-    "Дата отпраления" TIMESTAMP WITHOUT TIME ZONE,
-    "Станция отпр." VARCHAR(255),
-    "Дрг. отпр." VARCHAR(100),
-    "Ст. назнач." VARCHAR(255),
-    "Дрг. назн." VARCHAR(100),
-    "Код груза" VARCHAR(5),
-    "Груз наименование" VARCHAR(255),
-    "Дата доставки (расчетная)" DATE,
-    "Расст., км" REAL,
-    "Простой (дни)" NUMERIC,
-    "груж." VARCHAR(10),
-    "Время загрузки данных" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
+    r_name VARCHAR(3),
+    load_data TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
+    );
+ALTER TABLE diplom_raw.road OWNER TO keril;
+
+CREATE TABLE IF NOT EXISTS diplom_raw.station(
+    id SERIAL PRIMARY KEY,
+    s_name VARCHAR(255),
+    load_data TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3'));
+ALTER TABLE diplom_raw.station OWNER TO keril;
+
+CREATE TABLE IF NOT EXISTS diplom_raw.gruz(
+    id SERIAL PRIMARY KEY,
+    g_name VARCHAR(255),
+    load_data TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
 );
-ALTER TABLE diplom_raw.wagon_operations OWNER TO keril;
+ALTER TABLE diplom_raw.gruz OWNER TO keril;
+
+CREATE TABLE IF NOT EXISTS diplom_raw.company(
+    id SERIAL PRIMARY KEY,
+    c_name VARCHAR(255),
+    load_data TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
+);
+ALTER TABLE diplom_raw.company OWNER TO keril;
 
 CREATE TABLE IF NOT EXISTS diplom_raw.wagon_group (
     id SERIAL PRIMARY KEY,
-    "Группа наименование" varchar(255),
-    "Время изменнеия данных" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
+    group_name varchar(255),
+    load_data TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
     );
 ALTER TABLE diplom_raw.wagon_group OWNER TO keril;
 
@@ -67,7 +71,7 @@ CREATE TABLE IF NOT EXISTS diplom_raw.wagon (
     id SERIAL PRIMARY KEY,
     "Номер вагона" varchar(255),
     group_id INT REFERENCES diplom_raw.wagon_group(id),
-    "Время изменнеия данных" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
+    load_data TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() at time zone 'utc+3')
     );
 ALTER TABLE diplom_raw.wagon OWNER TO keril;
 
