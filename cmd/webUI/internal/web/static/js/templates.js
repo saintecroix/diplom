@@ -130,6 +130,10 @@ export function getGroupManagePage() {
         <h1 class="page-title">Управление группами вагонов</h1>
         
         <div class="card">
+          <h2 class="card-title">Активные группы</h2>
+        </div>
+
+        <div class="card">
           <h2 class="card-title">Создание группы вагонов</h2>
           <form id="create-group-form" class="form">
             <div class="form-group">
@@ -280,32 +284,32 @@ export function getAdminPage() {
           </div>
         </div>
         
-        <div class="card">
-          <h2 class="card-title">Системные настройки</h2>
-          <form id="settings-form" class="form">
-            <div class="form-group">
-              <label for="setting-company">Название компании</label>
-              <input type="text" id="setting-company" value="ООО 'ЖелДорТранс'">
-            </div>
-            <div class="form-group">
-              <label for="setting-timeout">Таймаут сессии (минуты)</label>
-              <input type="number" id="setting-timeout" value="30" min="5" max="120">
-            </div>
-            <div class="form-group">
-              <label for="setting-theme">Тема оформления</label>
-              <select id="setting-theme">
-                <option value="light">Светлая</option>
-                <option value="dark">Темная</option>
-                <option value="auto">Системная</option>
-              </select>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Сохранить настройки
-              </button>
-            </div>
-          </form>
-        </div>
+<!--        <div class="card">-->
+<!--          <h2 class="card-title">Системные настройки</h2>-->
+<!--          <form id="settings-form" class="form">-->
+<!--            <div class="form-group">-->
+<!--              <label for="setting-company">Название компании</label>-->
+<!--              <input type="text" id="setting-company" value="ООО 'ЖелДорТранс'">-->
+<!--            </div>-->
+<!--            <div class="form-group">-->
+<!--              <label for="setting-timeout">Таймаут сессии (минуты)</label>-->
+<!--              <input type="number" id="setting-timeout" value="30" min="5" max="120">-->
+<!--            </div>-->
+<!--            <div class="form-group">-->
+<!--              <label for="setting-theme">Тема оформления</label>-->
+<!--              <select id="setting-theme">-->
+<!--                <option value="light">Светлая</option>-->
+<!--                <option value="dark">Темная</option>-->
+<!--                <option value="auto">Системная</option>-->
+<!--              </select>-->
+<!--            </div>-->
+<!--            <div class="form-actions">-->
+<!--              <button type="submit" class="btn btn-primary">-->
+<!--                <i class="fas fa-save"></i> Сохранить настройки-->
+<!--              </button>-->
+<!--            </div>-->
+<!--          </form>-->
+<!--        </div>-->
         
         <div class="card">
           <h2 class="card-title">Журнал системы</h2>

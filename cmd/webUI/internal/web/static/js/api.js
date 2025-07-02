@@ -1,3 +1,5 @@
+import {getToken} from "./auth";
+
 const API_BASE = '/api';
 
 export async function uploadExcelFile(file, progressCallback) {
@@ -97,4 +99,49 @@ export function handleUploadError(error) {
         details: details,
         isError: true
     };
+}
+
+async function getAllUsers() {
+    const userToken = getToken(); // Получаем токен из хранилища
+
+    try {
+        const response = await fetch('/getUsers', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userToken}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Ошибка сервера: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Валидация структуры ответа
+        if (!data.users || !Array.isArray(data.users)) {
+            throw new Error('Некорректный формат данных: отсутствует массив users');
+        }
+
+        // Проверяем структуру каждого пользователя
+        const isValidUser = (user) => {
+            return user &&
+                typeof user.id === 'number' &&
+                typeof user.name === 'string' &&
+                typeof user.mail === 'string' &&
+                typeof user.role === 'string';
+        };
+
+        if (!data.users.every(isValidUser)) {
+            throw new Error('Некорректная структура данных пользователей');
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error('Ошибка при получении пользователей:', error);
+        throw new Error(`Не удалось загрузить пользователей: ${error.message}`);
+    }
 }
